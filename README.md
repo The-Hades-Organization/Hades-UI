@@ -28,7 +28,7 @@ Exemplo: `cargo run --example gallery` (`-- --dark` abre no escuro; o botão do 
 
 ## Componentes
 
-Só o que aparece em ao menos duas das sete páginas de design.
+Só o que é genérico de UI e aparece em páginas de design diferentes.
 
 | Componente | Papel |
 |---|---|
@@ -37,12 +37,20 @@ Só o que aparece em ao menos duas das sete páginas de design.
 | `PageHeader` | título da página e ações à direita |
 | `Card` | cartão com fio e título em caixa alta |
 | `StatusBadge` | selo de estado (`Tone`: neutro, vivo, ok, warn, bad, info) |
-| `DataTable` | tabela de texto com linha selecionável |
+| `DataTable` | tabela de texto com linha selecionável, ordenação e coluna numérica |
 | `KpiStrip`, `Kpi` | faixa de indicadores |
 | `Meter` | medidor de 6 px |
 | `TermBlock` | bloco de terminal |
 | `EmptyState` | estado vazio |
 | `StatusBar` | barra de estado no pé da janela |
+| `Button` | botão quadrado, primário ou secundário; `disabled(motivo)` mostra o motivo no tooltip |
+| `Segmented` | escolha de uma opção entre poucas; estado no chamador (`selected`, `on_select`) |
+| `FilterBar` | chips de filtro que ligam e desligam; estado no chamador |
+| `PathField` | caminho somente leitura com "Escolher" no diálogo de arquivo do sistema (`on_pick`) |
+| `Confirm` | diálogo de confirmação sobre a janela, com alvo em mono; renderize por último, só quando aberto |
+
+`DataTable` aceita ainda `Align::Numeric` (direita, mono), `sorted` + `on_sort` (seta e clique no cabeçalho) e
+`on_select` (clique na linha). A ordenação e a seleção são do chamador.
 
 Tokens em `hades_ui::tokens`: `Palette` (claro e escuro), `Tone`, escalas `size` e `space`, fontes e medidas fixas.
 
