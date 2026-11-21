@@ -17,10 +17,12 @@ pub fn palette(cx: &App) -> Palette {
         .unwrap_or_else(Palette::light)
 }
 
-/// Inicializa o `gpui-component` e instala o tema do Hades no modo pedido.
+/// Registra as fontes embutidas, inicializa o `gpui-component` e instala o tema do Hades no modo pedido.
 pub fn init(cx: &mut App, mode: ThemeMode) {
+    crate::fonts::register(cx);
     gpui_component::init(cx);
     set_mode(cx, mode);
+    use_brand_fonts(cx);
 }
 
 /// Troca de modo e reaplica a paleta (o `Theme::change` recarrega o tema registrado por cima).
@@ -35,7 +37,7 @@ pub fn set_mode(cx: &mut App, mode: ThemeMode) {
     Theme::update(cx, |theme| apply(theme, &palette));
 }
 
-/// Nomeia Figtree e Geist Mono. Só chame com as fontes instaladas ou embutidas: nome ausente cai no fallback do gpui.
+/// Nomeia Figtree e Geist Mono no tema. `init` já chama; use só depois de trocar o tema por fora.
 pub fn use_brand_fonts(cx: &mut App) {
     Theme::update(cx, |theme| {
         theme.font_family = SharedString::from(FONT_SANS);
@@ -103,6 +105,8 @@ fn apply(theme: &mut Theme, p: &Palette) {
     theme.radius = gpui::px(RADIUS);
     theme.radius_lg = gpui::px(RADIUS);
     theme.shadow = false;
+    theme.font_family = SharedString::from(FONT_SANS);
+    theme.mono_font_family = SharedString::from(FONT_MONO);
     theme.font_size = gpui::px(size::BODY);
     theme.mono_font_size = gpui::px(size::META);
 }

@@ -16,11 +16,10 @@ F0, em construção. Tema e componentes base prontos; nada específico de ferram
 gpui_platform::application().run(|cx| {
     hades_ui::init(cx, hades_ui::ThemeMode::Light); // gpui-component + paleta do Hades
     // hades_ui::set_mode(cx, ThemeMode::Dark);     // troca de modo
-    // hades_ui::use_brand_fonts(cx);               // só com Figtree e Geist Mono instaladas
 });
 ```
 
-`init` chama `gpui_component::init` e sobrescreve as cores, o raio (0) e as fontes do tema dele com os tokens do
+`init` registra as fontes embutidas, chama `gpui_component::init` e sobrescreve as cores, o raio (0) e as fontes do tema dele com os tokens do
 `DESIGN.md` (`~/.claude/skills/hades/DESIGN.md`). Botão, input, seletor e o resto vêm do `gpui-component` já com a
 paleta. Os componentes próprios leem `hades_ui::palette(cx)`; para cor fora do que eles cobrem, use essa paleta e nunca
 um hex solto.
@@ -46,6 +45,13 @@ Só o que aparece em ao menos duas das sete páginas de design.
 | `StatusBar` | barra de estado no pé da janela |
 
 Tokens em `hades_ui::tokens`: `Palette` (claro e escuro), `Tone`, escalas `size` e `space`, fontes e medidas fixas.
+
+## Fontes e licença
+
+Figtree (400, 600), Marcellus (400) e Geist Mono (400, 600) vão embutidas no binário; `init` as registra e o tema já
+usa Figtree e Geist Mono. Nenhuma instalação de fonte no sistema. Origem, commit e como as instâncias foram geradas:
+`crates/hades-ui/assets/fonts/README.md`. As três famílias são SIL OFL 1.1 (texto em `OFL-<Família>.txt` na mesma
+pasta), compatível com a licença MIT do crate; ao redistribuir o binário, mantenha esses avisos.
 
 ## Relação com o Hades-Skill
 
