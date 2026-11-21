@@ -1,8 +1,8 @@
 //! Mostra tema e componentes base. O botão do cabeçalho alterna claro e escuro; `--dark` abre no escuro.
 use gpui::prelude::FluentBuilder as _;
 use gpui::{
-    App, AppContext, Context, IntoElement, ParentElement, Render, Styled, Window, WindowOptions,
-    div, px,
+    App, AppContext, Context, IntoElement, ParentElement, Render, SharedString, Styled, Window,
+    WindowOptions, div, px,
 };
 use gpui_component::{ActiveTheme as _, Sizable as _, button::Button};
 use hades_ui::ThemeMode;
@@ -20,6 +20,7 @@ struct Gallery {
     caminho: Option<String>,
     ordem: (usize, bool),
     linha: usize,
+    pagina: Option<SharedString>,
     confirmando: bool,
 }
 
@@ -166,7 +167,11 @@ impl Render for Gallery {
             ),
             RailGroup::new("Ambiente", [RailItem::new("Configurações")]),
         ])
-        .selected("Visão geral");
+        .selected(self.pagina.clone().unwrap_or_else(|| "Visão geral".into()))
+        .on_select(cx.listener(|this, label: &SharedString, _, cx| {
+            this.pagina = Some(label.clone());
+            cx.notify();
+        }));
         let main = div()
             .flex_1()
             .min_w_0()

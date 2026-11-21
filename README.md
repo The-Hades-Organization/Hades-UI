@@ -33,7 +33,7 @@ Só o que é genérico de UI e aparece em páginas de design diferentes.
 | Componente | Papel |
 |---|---|
 | `TopBar` | barra de topo escura, título centralizado |
-| `Rail`, `RailGroup`, `RailItem` | navegação lateral agrupada, com item ativo e contador |
+| `Rail`, `RailGroup`, `RailItem` | navegação lateral agrupada, com item ativo e contador; `on_select` (clique e Enter/Espaço, foco visível) com o estado no chamador |
 | `PageHeader` | título da página e ações à direita |
 | `Card` | cartão com fio e título em caixa alta |
 | `StatusBadge` | selo de estado (`Tone`: neutro, vivo, ok, warn, bad, info) |

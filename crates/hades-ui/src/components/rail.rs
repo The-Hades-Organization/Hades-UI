@@ -1,7 +1,14 @@
-use gpui::{App, IntoElement, ParentElement, RenderOnce, SharedString, Styled, Window, div, px};
+use std::rc::Rc;
+
+use gpui::{
+    App, ElementId, InteractiveElement, IntoElement, ParentElement, RenderOnce, SharedString,
+    StatefulInteractiveElement, Styled, Window, div, px,
+};
 
 use crate::theme::palette;
 use crate::tokens::{FONT_MONO, RAIL_WIDTH, size};
+
+type SelectHandler = Rc<dyn Fn(&SharedString, &mut Window, &mut App)>;
 
 /// Item da navegação lateral, com contador opcional.
 pub struct RailItem {
@@ -39,18 +46,35 @@ impl RailGroup {
 }
 
 /// Trilho lateral escuro nos dois modos; `selected` é o rótulo do item ativo.
+/// Com `on_select`, cada item responde a clique e a Enter/Espaço; o estado é do chamador.
 #[derive(IntoElement)]
 pub struct Rail {
+    id: ElementId,
     groups: Vec<RailGroup>,
     selected: Option<SharedString>,
+    on_select: Option<SelectHandler>,
 }
 
 impl Rail {
     pub fn new(groups: impl IntoIterator<Item = RailGroup>) -> Self {
         Self {
+            id: "rail".into(),
             groups: groups.into_iter().collect(),
             selected: None,
+            on_select: None,
         }
+    }
+
+    /// Identificador do trilho; só precisa mudar se houver mais de um na janela.
+    pub fn id(mut self, id: impl Into<ElementId>) -> Self {
+        self.id = id.into();
+        self
+    }
+
+    /// Chamado com o rótulo do item escolhido por clique ou teclado.
+    pub fn on_select(mut self, f: impl Fn(&SharedString, &mut Window, &mut App) + 'static) -> Self {
+        self.on_select = Some(Rc::new(f));
+        self
     }
 
     pub fn selected(mut self, label: impl Into<SharedString>) -> Self {
@@ -63,6 +87,7 @@ impl RenderOnce for Rail {
     fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
         let p = palette(cx);
         let mut rail = div()
+            .id(self.id.clone())
             .flex()
             .flex_col()
             .gap(px(2.0))
@@ -74,6 +99,7 @@ impl RenderOnce for Rail {
             .bg(p.rail)
             .text_color(p.rail_fg)
             .text_size(px(size::LABEL));
+        let mut index = 0u64;
         for group in self.groups {
             rail = rail.child(
                 div()
@@ -88,6 +114,7 @@ impl RenderOnce for Rail {
             for item in group.items {
                 let on = self.selected.as_ref() == Some(&item.label);
                 let mut row = div()
+                    .id(ElementId::NamedInteger("rail-item".into(), index))
                     .flex()
                     .justify_between()
                     .px(px(14.0))
@@ -99,6 +126,15 @@ impl RenderOnce for Rail {
                         .bg(p.rail_sel.opacity(0.14))
                         .border_color(p.rail_sel)
                         .text_color(p.rail_sel);
+                }
+                index += 1;
+                if let Some(f) = self.on_select.clone() {
+                    let label = item.label.clone();
+                    row = row
+                        .cursor_pointer()
+                        .tab_stop(true)
+                        .focus_visible(|s| s.border_color(p.vivo))
+                        .on_click(move |_, window, cx| f(&label, window, cx));
                 }
                 row = row.child(item.label);
                 if let Some(badge) = item.badge {
