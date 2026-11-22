@@ -4,17 +4,23 @@ use gpui::{
     App, AppContext, Context, IntoElement, ParentElement, Render, SharedString, Styled, Window,
     WindowOptions, div, px,
 };
-use gpui_component::{ActiveTheme as _, Sizable as _, button::Button};
+use gpui_component::{
+    ActiveTheme as _, Sizable as _,
+    button::Button,
+    input::{InputEvent, InputState},
+};
 use hades_ui::ThemeMode;
 use hades_ui::Tone;
 use hades_ui::components::{
-    Align, Button as Btn, Card, Confirm, DataTable, EmptyState, FilterBar, Kpi, KpiStrip, Meter,
-    PageHeader, PathField, Rail, RailGroup, RailItem, Segmented, SortDirection, StatusBadge,
-    StatusBar, TermBlock, TopBar,
+    Align, Button as Btn, Card, Confirm, CopyButton, DataTable, EmptyState, FilterBar, Kpi,
+    KpiStrip, MarkdownView, Meter, PageHeader, PathField, Rail, RailGroup, RailItem, Segmented,
+    SortDirection, StatusBadge, StatusBar, TermBlock, TextField, Timeline, TopBar,
 };
 
 #[derive(Default)]
 struct Gallery {
+    campo: Option<gpui::Entity<InputState>>,
+    campo_erro: Option<SharedString>,
     escopo: usize,
     filtros: [bool; 3],
     caminho: Option<String>,
@@ -25,7 +31,25 @@ struct Gallery {
 }
 
 impl Render for Gallery {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let campo = match self.campo.clone() {
+            Some(c) => c,
+            None => {
+                let c = cx
+                    .new(|cx| InputState::new(window, cx).placeholder("2026-11-20T10:00:00-03:00"));
+                cx.subscribe(&c, |g: &mut Gallery, c, e: &InputEvent, cx| {
+                    if matches!(e, InputEvent::Change) {
+                        let v = c.read(cx).value();
+                        g.campo_erro = (!v.is_empty() && !v.contains(['+', '-', 'Z']))
+                            .then(|| "Intervalo sem fuso: use o offset, ex.: -03:00".into());
+                        cx.notify();
+                    }
+                })
+                .detach();
+                self.campo = Some(c.clone());
+                c
+            }
+        };
         let dark = cx.theme().mode.is_dark();
         let toggle = Button::new("modo")
             .small()
@@ -235,6 +259,25 @@ impl Render for Gallery {
                     .dim("1 em execução · 0 na fila"),
             )
             .child(controles)
+            .child(
+                Card::new()
+                    .title("Documento, linha do tempo e campo")
+                    .child(MarkdownView::new(
+                        "## Resumo\n\nO `/health/ready` caía quando o consumer reiniciava.\n\n- rollout travava\n- `live` não mudou",
+                    ))
+                    .child(
+                        Timeline::new()
+                            .entry("13:02", "deploy do sha 7e20d2b")
+                            .sourced("13:43", "PR #1234 aberta", "github", Tone::Info)
+                            .sourced("13:50", "merge e rollout verde", "orbit", Tone::Ok),
+                    )
+                    .child(
+                        TextField::new(&campo)
+                            .label("Intervalo")
+                            .error_opt(self.campo_erro.clone()),
+                    )
+                    .child(CopyButton::new("copiar", "! hades caronte pack plano.md")),
+            )
             .child(EmptyState::new("Nenhum agente ativo").hint("Recrute um pelo Argos."));
         let dialogo = self.confirmando.then(|| {
             let fechar = {
@@ -260,7 +303,7 @@ impl Render for Gallery {
             .size_full()
             .child(TopBar::new("Hades UI · gallery"))
             .child(div().flex().flex_1().min_h_0().child(rail).child(main))
-            .child(StatusBar::new("gallery", "hades-ui 0.1.0"))
+            .child(StatusBar::new("gallery", "hades-ui 0.1.2"))
             .children(dialogo)
     }
 }

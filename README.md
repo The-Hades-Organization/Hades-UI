@@ -47,6 +47,10 @@ Só o que é genérico de UI e aparece em páginas de design diferentes.
 | `Segmented` | escolha de uma opção entre poucas; estado no chamador (`selected`, `on_select`) |
 | `FilterBar` | chips de filtro que ligam e desligam; estado no chamador |
 | `PathField` | caminho somente leitura com "Escolher" no diálogo de arquivo do sistema (`on_pick`) |
+| `MarkdownView` | documento markdown somente leitura: cabeçalhos `#` a `###`, listas e código inline; o resto aparece como texto |
+| `Timeline` | linha do tempo: hora em mono e evento; `sourced` acrescenta selo da fonte (a cor só vai no selo) |
+| `TextField` | campo de texto (`InputState` do gpui-component) com rótulo e erro inline; a validação é do chamador |
+| `CopyButton` | copia o texto para a área de transferência do gpui e mostra "Copiado" por 1,5 s; sem IO na thread da UI |
 | `Confirm` | diálogo de confirmação sobre a janela, com alvo em mono; renderize por último, só quando aberto |
 
 `DataTable` aceita ainda `Align::Numeric` (direita, mono), `sorted` + `on_sort` (seta e clique no cabeçalho) e
