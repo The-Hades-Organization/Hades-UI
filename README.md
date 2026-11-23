@@ -99,6 +99,10 @@ aceitam ícone opcional (`Menu::icon(índice)`), e `Rail::brand(RailBrand)` põe
 `RailBrand::new("Moirai").subtitle("planos e estimativas")`; `RailBrand::hades()` fica só para o painel do Hades. Mudanças
 aditivas, sem quebra de API.
 
+## Nota sobre a v0.2.4
+
+A `v0.2.4` substitui a `v0.2.3` só nos dados da gallery e das capturas em `docs/identidade/`, que passam a usar exemplos fictícios. A API não mudou.
+
 ## Migração de 0.2.2 para 0.2.3
 
 Aditiva, com uma correção que afeta todos os apps: `Page` volta a rolar quando o conteúdo passa da janela.

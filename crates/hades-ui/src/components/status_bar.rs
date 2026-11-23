@@ -5,7 +5,7 @@ use crate::tokens::{FONT_MONO, STATUS_BAR_HEIGHT, size};
 
 /// Barra de estado no pé da janela, no tom do rodapé da sidebar do painel ("Memória do Hades"): texto em
 /// `muted-foreground` a 12 px, à esquerda e à direita, e o rótulo de versão que o app escolher na ponta direita,
-/// em mono (ex.: `moirai 0.3.0` ou `hades-ui 0.2.3`).
+/// em mono (ex.: `moirai 0.3.0` ou `hades-ui 0.2.4`).
 #[derive(IntoElement)]
 pub struct StatusBar {
     left: SharedString,

@@ -131,8 +131,8 @@ impl Render for Gallery {
                 let (col, desc) = self.ordem;
                 let mut linhas = vec![
                     ["pedidos: disparo", "12,4"],
-                    ["cameras: grade", "8,1"],
-                    ["emergencies", "31,7"],
+                    ["catálogo: grade", "8,1"],
+                    ["faturas", "31,7"],
                 ];
                 linhas.sort_by(|a, b| {
                     let o = if col == 0 {
@@ -277,7 +277,7 @@ impl Render for Gallery {
                                 ])
                                 .row([
                                     "#1234".into(),
-                                    "DEMO-12 ajuste de saude".into(),
+                                    "DEMO-12 ajuste de saúde".into(),
                                     "verde".into(),
                                 ])
                                 .row(["#1235".into(), "pedidos: disparo".into(), "review".into()])
@@ -338,12 +338,12 @@ impl Render for Gallery {
             )
             .child(
                 Card::new()
-                    .title("Post-mortem: o ready caía quando o consumer reiniciava e o rollout travava no meio")
+                    .title("Post-mortem: a fila caía quando o worker reiniciava e a publicação travava no meio")
                     .child(
                         MetaList::new()
-                            .row("Tempo até a correção", "47 minutos, do primeiro alerta ao rollout verde no ambiente de demonstração")
-                            .mono("Commit", "7e20d2b · fix: consumer reinicia sem derrubar o ready do serviço de demonstração")
-                            .row("Fontes", "github, orbit, notas do recruta"),
+                            .row("Tempo até a correção", "47 minutos, do primeiro alerta à publicação verde no ambiente de demonstração")
+                            .mono("Commit", "a1b2c3d · fix: worker reinicia sem derrubar a fila do serviço de demonstração")
+                            .row("Fontes", "github, deploy, notas do recruta"),
                     ),
             )
             .child(estados)
@@ -352,13 +352,13 @@ impl Render for Gallery {
                 Card::new()
                     .title("Documento, linha do tempo e campo")
                     .child(MarkdownView::new(
-                        "## Resumo\n\nO `/health/ready` caía quando o consumer reiniciava.\n\n- rollout travava\n- `live` não mudou",
+                        "## Resumo\n\nA `fila` caía quando o worker reiniciava.\n\n- a publicação travava\n- `status` não mudou",
                     ))
                     .child(
                         Timeline::new()
-                            .entry("13:02", "deploy do sha 7e20d2b")
+                            .entry("13:02", "deploy do sha a1b2c3d")
                             .sourced("13:43", "PR #1234 aberta", "github", Tone::Info)
-                            .sourced("13:50", "merge e rollout verde", "orbit", Tone::Ok),
+                            .sourced("13:50", "merge e publicação verde", "deploy", Tone::Ok),
                     )
                     .child(
                         TextField::new(&campo)
