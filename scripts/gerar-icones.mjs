@@ -34,8 +34,9 @@ for (const arq of fs.readdirSync(ui, { recursive: true })) {
   for (const m of fs.readFileSync(path.join(ui, arq), 'utf8').matchAll(/\bI\.([A-Z][A-Za-z0-9]*)/g)) usados.add(m[1]);
 }
 
-const attrs = (p) => Object.entries(p)
-  .filter(([k, v]) => !['key', 'aria-hidden', 'width', 'height', 'xmlns'].includes(k) && v !== undefined)
+// width/height só saem da raiz <svg>; num <rect> filho são a forma, e sem eles o retângulo some
+const attrs = (p, raiz = false) => Object.entries(p)
+  .filter(([k, v]) => !['key', 'aria-hidden', 'xmlns', ...(raiz ? ['width', 'height'] : [])].includes(k) && v !== undefined)
   .map(([k, v]) => `${k === 'viewBox' ? k : k.replace(/[A-Z]/g, (c) => '-' + c.toLowerCase())}="${v}"`).join(' ');
 const tag = (n) => `<${n.type} ${attrs(n.props)}/>`;
 const TRACO = 'fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"';
@@ -48,7 +49,7 @@ function proprio(nome) {
 }
 function figura(f) {
   const n = f({});
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" ${attrs(n.props)}>${n.children.map(tag).join('')}</svg>\n`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" ${attrs(n.props, true)}>${n.children.map(tag).join('')}</svg>\n`;
 }
 function doLucide(nome) {
   const comp = lucide[nome];
@@ -59,8 +60,8 @@ function doLucide(nome) {
 
 const kebab = (n) => n.replace(/([a-z0-9])([A-Z])/g, '$1-$2').replace(/([A-Za-z])([0-9])/g, '$1-$2').toLowerCase();
 const nomes = [...usados].sort();
-fs.rmSync(saida, { recursive: true, force: true });
 fs.mkdirSync(saida, { recursive: true });
+for (const velho of fs.readdirSync(saida)) if (velho.endsWith('.svg')) fs.rmSync(path.join(saida, velho));
 const linhas = [];
 for (const nome of nomes) {
   let conteudo;
