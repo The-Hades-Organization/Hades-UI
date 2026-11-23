@@ -9,6 +9,7 @@ use crate::tokens::{FONT_HEADING, size};
 pub struct EmptyState {
     title: SharedString,
     hint: Option<SharedString>,
+    fill: bool,
 }
 
 impl EmptyState {
@@ -16,7 +17,14 @@ impl EmptyState {
         Self {
             title: title.into(),
             hint: None,
+            fill: false,
         }
+    }
+
+    /// Ocupa a altura que sobra no pai (coluna flex), com o texto centrado nela.
+    pub fn fill(mut self) -> Self {
+        self.fill = true;
+        self
     }
 
     pub fn hint(mut self, hint: impl Into<SharedString>) -> Self {
@@ -45,6 +53,9 @@ impl RenderOnce for EmptyState {
                     .text_size(px(size::SECTION))
                     .child(self.title),
             );
+        if self.fill {
+            body = body.flex_1().min_h_0();
+        }
         if let Some(hint) = self.hint {
             body = body.child(
                 div()

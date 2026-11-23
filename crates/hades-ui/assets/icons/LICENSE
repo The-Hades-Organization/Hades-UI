@@ -26,7 +26,8 @@ O traço foi ajustado ao do painel (stroke-linecap square, stroke-linejoin miter
 
 2. Desenhos próprios do painel do Hades (grafo, loop, fila, consumo, terminal, chat, logs,
 notif, config, docs, guarda, ramo, play, parar, atualizar, ok, alerta, fechar, buscar, menu,
-seta, Cerberus, Caronte), sob a licença MIT deste repositório.
+seta, Cerberus, Caronte), gerados para o Hades, sem licença de terceiros, sob a licença MIT deste
+repositório.
 
 3. O ícone do Argos (seis olhos) vem do SVG Repo (six-eyes), como no painel, que não registra a
 licença dele. O desenho parece o "six-eyes" do game-icons.net (CC BY 3.0); a origem e a licença

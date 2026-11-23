@@ -31,12 +31,15 @@ pub(crate) fn corners(color: Hsla) -> [Div; 4] {
 }
 
 /// Cartão do painel (`Card` + `CardHeader`): fundo `card` a 96%, sem borda nem sombra, com colchetes de canto
-/// na cor `line`. O título usa a fonte de título a 18 px. `object()` é a variante compacta (p 14, gap 10).
+/// na cor `line`. O título usa a fonte de título a 18 px, com `meta` ao lado e `action` à direita. `object()` é a variante compacta (p 14, gap 10).
 #[derive(IntoElement)]
 pub struct Card {
     title: Option<SharedString>,
     description: Option<SharedString>,
+    meta: Option<SharedString>,
+    actions: Vec<AnyElement>,
     object: bool,
+    fill: bool,
     children: Vec<AnyElement>,
 }
 
@@ -45,7 +48,10 @@ impl Card {
         Self {
             title: None,
             description: None,
+            meta: None,
+            actions: Vec::new(),
             object: false,
+            fill: false,
             children: Vec::new(),
         }
     }
@@ -57,6 +63,24 @@ impl Card {
 
     pub fn description(mut self, description: impl Into<SharedString>) -> Self {
         self.description = Some(description.into());
+        self
+    }
+
+    /// Metadado curto ao lado do título, em `muted-foreground` a 12 px (ex.: "escolhida · 5 de 7 feitos").
+    pub fn meta(mut self, meta: impl Into<SharedString>) -> Self {
+        self.meta = Some(meta.into());
+        self
+    }
+
+    /// Ação no canto direito do cabeçalho (botão, selo).
+    pub fn action(mut self, element: impl IntoElement) -> Self {
+        self.actions.push(element.into_any_element());
+        self
+    }
+
+    /// Ocupa a altura que sobra no pai (coluna flex); o conteúdo que também tem `fill` cresce junto.
+    pub fn fill(mut self) -> Self {
+        self.fill = true;
         self
     }
 
@@ -97,16 +121,43 @@ impl RenderOnce for Card {
             .bg(p.card.opacity(0.96))
             .text_color(p.fg)
             .children(corners(p.line));
-        if self.title.is_some() || self.description.is_some() {
-            let mut head = div().flex().flex_col().gap(px(2.0));
+        if self.fill {
+            card = card.flex_1().min_h_0();
+        }
+        if self.title.is_some()
+            || self.description.is_some()
+            || self.meta.is_some()
+            || !self.actions.is_empty()
+        {
+            let mut line = div()
+                .flex()
+                .flex_wrap()
+                .items_baseline()
+                .gap_x(px(12.0))
+                .gap_y(px(2.0));
             if let Some(title) = self.title {
-                head = head.child(
+                line = line.child(
                     div()
                         .font_family(FONT_HEADING)
                         .text_size(px(size::SECTION))
                         .child(title),
                 );
             }
+            if let Some(meta) = self.meta {
+                line = line.child(
+                    div()
+                        .text_color(p.muted_fg)
+                        .text_size(px(size::META))
+                        .child(meta),
+                );
+            }
+            let mut head = div()
+                .flex()
+                .flex_col()
+                .flex_1()
+                .min_w_0()
+                .gap(px(2.0))
+                .child(line);
             if let Some(description) = self.description {
                 head = head.child(
                     div()
@@ -115,7 +166,16 @@ impl RenderOnce for Card {
                         .child(description),
                 );
             }
-            card = card.child(head);
+            card = card.child(
+                div().flex().items_start().gap(px(12.0)).child(head).child(
+                    div()
+                        .flex()
+                        .flex_none()
+                        .items_center()
+                        .gap(px(8.0))
+                        .children(self.actions),
+                ),
+            );
         }
         card.children(self.children)
     }

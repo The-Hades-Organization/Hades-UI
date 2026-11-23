@@ -1,15 +1,15 @@
 use std::rc::Rc;
 
 use gpui::{
-    App, BoxShadow, ElementId, FontWeight, InteractiveElement, IntoElement, ParentElement,
-    RenderOnce, SharedString, StatefulInteractiveElement, Styled, Window, div, linear_color_stop,
-    linear_gradient, point, prelude::FluentBuilder, px,
+    AnyElement, App, BoxShadow, ElementId, FontWeight, InteractiveElement, IntoElement,
+    ParentElement, RenderOnce, SharedString, StatefulInteractiveElement, Styled, Window, div,
+    linear_color_stop, linear_gradient, point, prelude::FluentBuilder, px,
 };
 
 use super::Tracked;
 use crate::icons::{Icon, IconName, brand_mark};
 use crate::theme::palette;
-use crate::tokens::{FONT_HEADING, FONT_MONO, RAIL_WIDTH, control, size};
+use crate::tokens::{FONT_HEADING, FONT_MONO, RAIL_WIDTH, Tone, control, size};
 
 type SelectHandler = Rc<dyn Fn(&SharedString, &mut Window, &mut App)>;
 
@@ -19,6 +19,7 @@ pub struct RailItem {
     badge: Option<SharedString>,
     alive: bool,
     icon: Option<IconName>,
+    subtitle: Option<SharedString>,
 }
 
 impl RailItem {
@@ -28,6 +29,7 @@ impl RailItem {
             badge: None,
             alive: false,
             icon: None,
+            subtitle: None,
         }
     }
 
@@ -45,6 +47,12 @@ impl RailItem {
 
     pub fn badge(mut self, badge: impl Into<SharedString>) -> Self {
         self.badge = Some(badge.into());
+        self
+    }
+
+    /// Segunda linha sob o rótulo, em `rail-muted` a 11 px (ex.: "terminais e agentes").
+    pub fn subtitle(mut self, subtitle: impl Into<SharedString>) -> Self {
+        self.subtitle = Some(subtitle.into());
         self
     }
 }
@@ -80,7 +88,7 @@ pub struct RailBrand {
 }
 
 impl RailBrand {
-    /// Marca com o glifo do Hades; o nome vai em caixa alta.
+    /// Marca com o glifo do Hades; o nome vai em caixa alta. Passe o nome da ferramenta (ex.: `"Moirai"`), não "Hades".
     pub fn new(name: impl Into<SharedString>) -> Self {
         Self {
             glyph: BrandGlyph::Hades,
@@ -152,6 +160,7 @@ pub struct Rail {
     brand: Option<RailBrand>,
     selected: Option<SharedString>,
     on_select: Option<SelectHandler>,
+    footer: Option<AnyElement>,
 }
 
 impl Rail {
@@ -162,7 +171,14 @@ impl Rail {
             brand: None,
             selected: None,
             on_select: None,
+            footer: None,
         }
+    }
+
+    /// Bloco preso ao pé do trilho, abaixo dos grupos (em geral um [`RailStat`]).
+    pub fn footer(mut self, footer: impl IntoElement) -> Self {
+        self.footer = Some(footer.into_any_element());
+        self
     }
 
     /// Marca no topo, acima dos grupos.
@@ -186,6 +202,85 @@ impl Rail {
     pub fn selected(mut self, label: impl Into<SharedString>) -> Self {
         self.selected = Some(label.into());
         self
+    }
+}
+
+/// Bloco de estado do pé do [`Rail`] (o "Memória do Hades" do painel): rótulo em `rail-muted` e valor em mono
+/// `rail-foreground` na mesma linha, e embaixo, se houver `fraction`, a barra de 3 px sobre `rail-foreground` a 10%.
+#[derive(IntoElement)]
+pub struct RailStat {
+    label: SharedString,
+    value: SharedString,
+    fraction: Option<f32>,
+    tone: Tone,
+}
+
+impl RailStat {
+    pub fn new(label: impl Into<SharedString>, value: impl Into<SharedString>) -> Self {
+        Self {
+            label: label.into(),
+            value: value.into(),
+            fraction: None,
+            tone: Tone::Ok,
+        }
+    }
+
+    /// Fração entre 0 e 1 para a barra.
+    pub fn fraction(mut self, fraction: f32) -> Self {
+        self.fraction = Some(fraction.clamp(0.0, 1.0));
+        self
+    }
+
+    /// Cor da barra; `Neutral` usa a cor de texto do trilho.
+    pub fn tone(mut self, tone: Tone) -> Self {
+        self.tone = tone;
+        self
+    }
+}
+
+impl RenderOnce for RailStat {
+    fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
+        let p = palette(cx);
+        let fill = if self.tone == Tone::Neutral {
+            p.rail_fg
+        } else {
+            p.tone(self.tone)
+        };
+        div()
+            .flex()
+            .flex_none()
+            .flex_col()
+            .px(px(16.0))
+            .py(px(12.0))
+            .border_t_1()
+            .border_color(p.rail_line)
+            .text_size(px(size::META))
+            .text_color(p.rail_mute)
+            .child(
+                div()
+                    .flex()
+                    .flex_wrap()
+                    .items_baseline()
+                    .justify_between()
+                    .gap_x(px(8.0))
+                    .child(div().whitespace_nowrap().child(self.label))
+                    .child(
+                        div()
+                            .whitespace_nowrap()
+                            .font_family(FONT_MONO)
+                            .text_color(p.rail_fg)
+                            .child(self.value),
+                    ),
+            )
+            .when_some(self.fraction, |b, f| {
+                b.child(
+                    div()
+                        .mt(px(8.0))
+                        .h(px(3.0))
+                        .bg(p.rail_fg.opacity(0.1))
+                        .child(div().h_full().w(gpui::relative(f)).bg(fill)),
+                )
+            })
     }
 }
 
@@ -234,7 +329,8 @@ impl RenderOnce for Rail {
                     .flex()
                     .items_center()
                     .justify_between()
-                    .h(px(control::MD))
+                    .min_h(px(control::MD))
+                    .when(item.subtitle.is_some(), |r| r.py(px(4.0)))
                     .pl(px(40.0))
                     .pr(px(14.0));
                 let light = if on {
@@ -307,7 +403,22 @@ impl RenderOnce for Rail {
                             p.rail_mute
                         }))
                     })
-                    .child(div().truncate().child(item.label));
+                    .child(
+                        div()
+                            .flex()
+                            .flex_col()
+                            .min_w_0()
+                            .child(div().truncate().child(item.label))
+                            .when_some(item.subtitle, |c, sub| {
+                                c.child(
+                                    div()
+                                        .truncate()
+                                        .text_color(p.rail_mute)
+                                        .text_size(px(size::MICRO))
+                                        .child(sub),
+                                )
+                            }),
+                    );
                 row = row.child(label);
                 if let Some(badge) = item.badge {
                     row = row.child(
@@ -325,7 +436,7 @@ impl RenderOnce for Rail {
             .id(self.id.clone())
             .flex()
             .flex_col()
-            .py(px(8.0))
+            .pt(px(8.0))
             .w(px(RAIL_WIDTH))
             .h_full()
             .flex_none()
@@ -336,7 +447,8 @@ impl RenderOnce for Rail {
             .border_r_1()
             .border_color(p.rail_line)
             .when_some(self.brand, |r, b| r.child(b.render(&p)))
-            .child(nav)
+            .child(div().flex_1().min_h_0().overflow_hidden().child(nav))
+            .when_some(self.footer, |r, f| r.child(f))
     }
 }
 

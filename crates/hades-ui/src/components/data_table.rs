@@ -36,6 +36,8 @@ pub struct DataTable {
     sort: Option<(usize, SortDirection)>,
     on_select: Option<IndexHandler>,
     on_sort: Option<IndexHandler>,
+    fill: Option<ElementId>,
+    empty: Option<SharedString>,
 }
 
 impl DataTable {
@@ -47,7 +49,22 @@ impl DataTable {
             sort: None,
             on_select: None,
             on_sort: None,
+            fill: None,
+            empty: None,
         }
+    }
+
+    /// Ocupa a altura que sobra no pai (que precisa ser coluna flex): o cabeçalho fica e as linhas rolam.
+    /// `id` identifica a área de rolagem.
+    pub fn fill(mut self, id: impl Into<ElementId>) -> Self {
+        self.fill = Some(id.into());
+        self
+    }
+
+    /// Texto no lugar das linhas quando não há nenhuma; com `fill`, fica centrado na altura.
+    pub fn empty(mut self, text: impl Into<SharedString>) -> Self {
+        self.empty = Some(text.into());
+        self
     }
 
     pub fn row(mut self, cells: impl IntoIterator<Item = SharedString>) -> Self {
@@ -117,12 +134,22 @@ impl RenderOnce for DataTable {
             };
             head = head.child(c);
         }
-        let mut table = div()
-            .flex()
-            .flex_col()
-            .text_color(p.fg)
-            .text_size(px(size::LABEL))
-            .child(head);
+        let mut body = div().flex().flex_col();
+        if self.rows.is_empty()
+            && let Some(empty) = self.empty
+        {
+            body = body.flex_1().child(
+                div()
+                    .flex()
+                    .flex_1()
+                    .items_center()
+                    .justify_center()
+                    .min_h(px(80.0))
+                    .p(px(24.0))
+                    .text_color(p.muted_fg)
+                    .child(empty),
+            );
+        }
         for (i, row) in self.rows.into_iter().enumerate() {
             let mut line = div().flex().border_b_1().border_color(p.border);
             if i % 2 == 1 {
@@ -135,16 +162,38 @@ impl RenderOnce for DataTable {
                 line = line.child(cell(text, *align));
             }
             if let Some(on_select) = self.on_select.clone() {
-                table = table.child(
+                body = body.child(
                     line.id(ElementId::NamedInteger("row".into(), i as u64))
                         .cursor_pointer()
                         .hover(move |s| s.bg(p.hover))
                         .on_click(move |_, window, cx| on_select(i, window, cx)),
                 );
             } else {
-                table = table.child(line);
+                body = body.child(line);
             }
         }
-        table
+        let table = div()
+            .flex()
+            .flex_col()
+            .text_color(p.fg)
+            .text_size(px(size::LABEL))
+            .child(head);
+        match self.fill {
+            Some(id) => table
+                .flex_1()
+                .min_h_0()
+                .child(
+                    div()
+                        .id(id)
+                        .flex()
+                        .flex_col()
+                        .flex_1()
+                        .min_h_0()
+                        .overflow_y_scroll()
+                        .child(body.flex_1()),
+                )
+                .into_any_element(),
+            None => table.child(body).into_any_element(),
+        }
     }
 }

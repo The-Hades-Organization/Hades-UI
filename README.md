@@ -42,7 +42,10 @@ Só o que é genérico de UI e aparece em páginas de design diferentes.
 | `KpiStrip`, `Kpi` | faixa de indicadores |
 | `Meter` | barra de progresso de 4 px sobre trilho `--border` |
 | `TermBlock` | bloco de terminal; `dim`, `warn` e `bad` por linha |
-| `EmptyState` | estado vazio |
+| `EmptyState` | estado vazio; `fill` centraliza na área livre |
+| `IconButton` | botão ghost de 32 px só com ícone, com dica e estado `pressed` |
+| `Page`, `MetaList` | área de conteúdo que rola ou preenche a altura (`fill_child`) e lista rótulo/valor que quebra linha |
+| `RailStat` | bloco de estado do rodapé do `Rail` (rótulo, valor e `Meter`), como "Memória" no painel |
 | `StatusBar` | barra de estado no pé da janela |
 | `Button` | botão quadrado: `ButtonKind` (secondary, primary, ghost, destructive, ghost-destructive, link), `ButtonSize` (md, xs, lg, icon), `loading` com giro, `disabled(motivo)` com hachura e o motivo no tooltip |
 | `Segmented` | escolha de uma opção entre poucas; estado no chamador (`selected`, `on_select`) |
@@ -89,10 +92,25 @@ pasta), compatível com a licença MIT do crate; ao redistribuir o binário, man
 ## Ícones
 
 O módulo `icons` embute 171 SVGs (`assets/icons/`), renderizados pelo `svg()` do gpui com a cor do texto. Vêm do Lucide
-v0.460.0 (licença ISC, texto em `assets/icons/LICENSE`) e de alguns ícones próprios do painel. `IconName::ALL` lista
+v0.460.0 (licença ISC, texto em `assets/icons/LICENSE`) e de ícones próprios do painel (origem `hades` em `icons/set.rs`),
+gerados para o Hades, sem licença de terceiros, sob a MIT deste repositório. `IconName::ALL` lista
 todos; `Icon` desenha um; `brand_mark` e `HADES_MARK` trazem o glifo da marca. `RailItem`, `Button`, `Toast` e `Menu`
-aceitam ícone opcional (`Menu::icon(índice)`), e `Rail::brand(RailBrand)` põe a marca no topo da sidebar. Mudanças
+aceitam ícone opcional (`Menu::icon(índice)`), e `Rail::brand(RailBrand)` põe a marca no topo da sidebar. A marca mostra o nome da ferramenta, não "Hades":
+`RailBrand::new("Moirai").subtitle("planos e estimativas")`; `RailBrand::hades()` fica só para o painel do Hades. Mudanças
 aditivas, sem quebra de API.
+
+## Migração de 0.2.1 para 0.2.2
+
+Aditiva, com três mudanças de aparência:
+
+- `TopBar` não mostra mais "gpui" à direita; use `.trailing(...)` para manter. Os apps não precisam de `TopBar`: a janela
+  fecha com `Rail` + `Page` + `StatusBar`, e estado/tema cabem em `RailStat` e `PageHeader::action`.
+- `TermBlock` usa por padrão o bloco rosado do painel, com `.copy(id, texto)` embutido no canto; `.terminal()` volta ao
+  fundo escuro.
+- `FilterBar` tem chips novos (fundo secondary, ativo com visto e linha de base primary).
+
+Novos: `IconButton`, `Page`, `MetaList`, `RailStat`, `PageHeader::subtitle`/`description`, `Card::meta`/`action`/`fill`,
+`Meter::label`/`value`, `DataTable::fill`/`empty`, `EmptyState::fill`, `RailItem::subtitle`, `Rail::footer`.
 
 ## Relação com o Hades-Skill
 

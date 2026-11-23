@@ -13,10 +13,10 @@ use hades_ui::ThemeMode;
 use hades_ui::Tone;
 use hades_ui::components::{
     Align, Button as Btn, ButtonKind, ButtonSize, Card, Confirm, ContextMenu, CopyButton,
-    DataTable, Dot, EmptyState, FilterBar, Fio, FioState, Kbd, Kpi, KpiStrip, MarkdownView, Menu,
-    MenuEntry, Meter, PageHeader, PathField, Rail, RailBrand, RailGroup, RailItem, Segmented,
-    Skeleton, SortDirection, Spinner, StatusBadge, StatusBar, Switch, TermBlock, TextField,
-    Timeline, Tip, Toast, TopBar,
+    DataTable, Dot, EmptyState, FilterBar, Fio, FioState, IconButton, Kbd, Kpi, KpiStrip,
+    MarkdownView, Menu, MenuEntry, MetaList, Meter, Page, PageHeader, PathField, Rail, RailBrand,
+    RailGroup, RailItem, RailStat, Segmented, Skeleton, SortDirection, Spinner, StatusBadge,
+    StatusBar, Switch, TermBlock, TextField, Timeline, Tip, Toast,
 };
 use hades_ui::icons::{Icon, IconName};
 
@@ -197,6 +197,9 @@ impl Render for Gallery {
                     RailItem::new("Fila de gates")
                         .icon(IconName::ListOrdered)
                         .badge("1"),
+                    RailItem::new("Herdr")
+                        .icon(IconName::SquareTerminal)
+                        .subtitle("terminais e agentes"),
                 ],
             ),
             RailGroup::new(
@@ -204,24 +207,33 @@ impl Render for Gallery {
                 [RailItem::new("Configurações").icon(IconName::SlidersHorizontal)],
             ),
         ])
-        .brand(RailBrand::hades())
+        .brand(RailBrand::new("Moirai").subtitle("planos e estimativas"))
+        .footer(
+            RailStat::new("Memória", "1,2 GiB · teto 4 GiB")
+                .fraction(0.3)
+                .tone(Tone::Ok),
+        )
         .selected(self.pagina.clone().unwrap_or_else(|| "Visão geral".into()))
         .on_select(cx.listener(|this, label: &SharedString, _, cx| {
             this.pagina = Some(label.clone());
             cx.notify();
         }));
-        let main = div()
-            .id("main")
+        let main = Page::new("main")
             .track_scroll(&self.rolagem)
-            .overflow_y_scroll()
-            .flex_1()
-            .min_w_0()
-            .flex()
-            .flex_col()
-            .gap(px(14.0))
-            .p(px(18.0))
-            .bg(cx.theme().background)
-            .child(PageHeader::new("Visão geral").action(toggle))
+            .header(
+                PageHeader::new("Visão geral")
+                    .subtitle("Estado do ambiente, agentes e filas num lugar só")
+                    .description(
+                        "Escolher só marca o recurso: nada roda até você confirmar. Os passos abaixo \
+                         mostram o comando de cada um, com o botão de copiar embutido no bloco.",
+                    )
+                    .action(IconButton::new(
+                        "congelar",
+                        IconName::Snowflake,
+                        "Congelar a tela",
+                    ))
+                    .action(toggle),
+            )
             .child(KpiStrip::new([
                 Kpi::new("Agentes ativos", "7"),
                 Kpi::new("Pedem você", "2").tone(Tone::Vivo),
@@ -234,7 +246,11 @@ impl Render for Gallery {
                     .gap(px(12.0))
                     .child(
                         div().flex_1().child(
-                            Card::new().title("PRs em voo").child(
+                            Card::new()
+                                .title("PRs em voo")
+                                .meta("2 abertas · 1 verde")
+                                .action(StatusBadge::new("ao vivo", Tone::Ok))
+                                .child(
                                 DataTable::new([
                                     ("PR".into(), Align::Start),
                                     ("Título".into(), Align::Start),
@@ -265,17 +281,50 @@ impl Render for Gallery {
                                         .child(StatusBadge::new("issue", Tone::Info))
                                         .child(StatusBadge::new("neutro", Tone::Neutral)),
                                 )
-                                .child(Meter::new(0.62))
-                                .child(Meter::new(0.71).tone(Tone::Warn)),
+                                .child(Meter::new(0.62).label("Janela 5h").value("62%"))
+                                .child(
+                                    Meter::new(0.71)
+                                        .tone(Tone::Warn)
+                                        .label("Janela semanal")
+                                        .value("71% · renova em 2d"),
+                                ),
                         ),
                     ),
             )
             .child(
-                TermBlock::new()
-                    .line("$ hades gate-lock status")
-                    .dim("1 em execução · 0 na fila")
-                    .warn("aviso: worktree sem hooks")
-                    .bad("erro: gate barrado"),
+                Card::new()
+                    .title("Blocos de código")
+                    .meta("comando com copiar · saída de terminal")
+                    .child(
+                        TermBlock::new()
+                            .line("/tmp/hades-demo/kit/tunnel.sh panel-start --porta 21220 --sem-navegador --perfil demo")
+                            .copy("copiar-tunel", "/tmp/hades-demo/kit/tunnel.sh panel-start"),
+                    )
+                    .child(
+                        TermBlock::new()
+                            .line("$ hades fila status")
+                            .dim("1 em execução · 0 na fila")
+                            .warn("aviso: worktree sem hooks")
+                            .bad("erro: gate barrado"),
+                    )
+                    .child(
+                        TermBlock::new()
+                            .terminal()
+                            .line("$ hades fila status")
+                            .dim("1 em execução · 0 na fila")
+                            .warn("aviso: worktree sem hooks")
+                            .bad("erro: gate barrado"),
+                    ),
+            )
+            .child(
+                Card::new()
+                    .title("Post-mortem: o ready caía quando o consumer reiniciava e o rollout travava no meio")
+                    .child(
+                        MetaList::new()
+                            .row("Tempo até a correção", "47 minutos, do primeiro alerta ao rollout verde no ambiente de demonstração")
+                            .mono("Commit", "7e20d2b · fix: consumer reinicia sem derrubar o ready do serviço de demonstração")
+                            .row("Fontes", "github, orbit, notas do recruta"),
+                    ),
             )
             .child(estados)
             .child(controles)
@@ -298,7 +347,31 @@ impl Render for Gallery {
                     )
                     .child(CopyButton::new("copiar", "! hades caronte pack plano.md")),
             )
-            .child(EmptyState::new("Nenhum agente ativo").hint("Recrute um pelo Argos."));
+            .child(
+                div()
+                    .flex()
+                    .gap(px(12.0))
+                    .h(px(260.0))
+                    .child(
+                        div().flex().flex_col().flex_1().child(
+                            Card::new().title("Tabela que cresce").fill().child(
+                                DataTable::new([
+                                    ("Pacote".into(), Align::Start),
+                                    ("Estado".into(), Align::End),
+                                ])
+                                .fill("tabela-vazia")
+                                .empty("Nenhum pacote ainda"),
+                            ),
+                        ),
+                    )
+                    .child(
+                        div().flex().flex_col().flex_1().child(
+                            EmptyState::new("Nenhum agente ativo")
+                                .hint("Recrute um pelo Argos.")
+                                .fill(),
+                        ),
+                    ),
+            );
         let dialogo = self.confirmando.then(|| {
             let fechar = {
                 let this = this.clone();
@@ -321,7 +394,6 @@ impl Render for Gallery {
             .flex()
             .flex_col()
             .size_full()
-            .child(TopBar::new("Hades UI · gallery"))
             .child(div().flex().flex_1().min_h_0().child(rail).child(main))
             .child(StatusBar::new(
                 "gallery",
