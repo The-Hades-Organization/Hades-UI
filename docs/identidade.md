@@ -112,18 +112,18 @@ O `gpui-pre =0.3.11` e o `gpui-component =0.9.0` não cobrem tudo o que o CSS do
 |---|---|---|
 | Foco: `outline` 2 px tracejado `--ring`, offset 3 | Duas sombras sólidas: anel de 3 px na cor do fundo e anel de 2 px `--ring` por fora | `Button`, `Switch`, `Segmented` |
 | Pressionado: `translate-y` 1 px | `mt 1 / mb -1` enquanto ativo | `Button` |
-| `letter-spacing: .14em` no rótulo de grupo | Sem espaçamento de letra: o gpui não expõe `letter-spacing` | `Rail` |
+| `letter-spacing: .14em` no rótulo de grupo | `Tracked`: uma caixa por letra com gap de em×tamanho, pois o gpui 0.3.11 não expõe `letter-spacing` | `Rail`, marca |
 | Emergir: sobe 8 px com `blur` 7 px | Sobe 8 px com opacidade, sem blur | `Toast` |
 | Figtree 500 (label, meta-em) | Cai em 400 ou 600, os pesos embutidos | todos os rótulos |
 | `cursor: progress` no carregando | Cursor padrão; o giro indica a espera | `Button` |
 | Gradiente com 3 ou mais paradas | O gpui só pinta `linear_gradient` de 2 paradas; shimmer e fio usam duas meias-faixas | `Skeleton`, `Fio` |
-| Ícone do tipo no toast | Ponto na cor do tipo; o `hades-ui` não traz o pacote de ícones | `Toast` |
+| Ícone do tipo no toast | Ícone do tipo por padrão; `Toast::icon` troca | `Toast` |
 | Óbolo desliza até o item atual (420 ms) | Óbolo fica no item atual, sem deslizar: o `RenderOnce` não guarda a posição anterior | `Rail` |
 | Correnteza animada no rio da sidebar | Rio estático, 1 px `rail-muted` 26% | `Rail` |
 | Navegação por setas no menu | Só ponteiro e clique; `Esc` fecha | `Menu`, `ContextMenu` |
 | Progresso anima a largura em 700 ms | Largura muda sem transição: o `RenderOnce` não guarda o valor anterior | `Meter` |
 | Topo com `backdrop-filter: blur` sobre fundo 90% | Fundo 90% sem blur | `TopBar` |
 | Fundo do modal com `fade-in` | Fundo preto 50% sem fade | `Confirm` |
-| Ícones Lucide no rail, nos botões e no toast | Sem ícones: o `hades-ui` não traz pacote de ícones; o app passa o seu | `Rail`, `Button`, `Toast` |
-| Marca "HADES" no topo da sidebar com tracking largo | Sem marca: o app põe a sua acima do `Rail` | `Rail` |
+| Ícones Lucide no rail, nos botões, no menu e no toast | Módulo `icons` (171 SVGs embutidos, Lucide ISC e próprios), cor herdada do texto; `RailItem::icon`, `Button::icon`, `Toast::icon`, `Menu::icon(índice)` e `ContextMenu::icon(índice)` (por índice, porque `MenuEntry::Item` tem campos públicos e um campo novo quebraria a API) | `Rail`, `Button`, `Toast`, `Menu` |
+| Marca "HADES" no topo da sidebar com tracking largo | `RailBrand` com `Rail::brand`: glifo, nome em Marcellus espaçado e subtítulo | `Rail` |
 | Flash amarelo no dado que mudou (1,2 s) | Não portado; fica para quando um app precisar | — |

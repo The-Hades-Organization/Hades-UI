@@ -1,4 +1,5 @@
-//! Mostra tema e componentes base. O botão do cabeçalho alterna claro e escuro; `--dark` abre no escuro.
+//! Mostra tema e componentes base. O botão do cabeçalho alterna claro e escuro; `--dark` abre no escuro e `--fim`
+//! abre rolado até o fim (menu, toast e ícones).
 use gpui::prelude::FluentBuilder as _;
 use gpui::{
     App, AppContext, Context, InteractiveElement, IntoElement, ParentElement, Render, SharedString,
@@ -13,10 +14,11 @@ use hades_ui::Tone;
 use hades_ui::components::{
     Align, Button as Btn, ButtonKind, ButtonSize, Card, Confirm, ContextMenu, CopyButton,
     DataTable, Dot, EmptyState, FilterBar, Fio, FioState, Kbd, Kpi, KpiStrip, MarkdownView, Menu,
-    MenuEntry, Meter, PageHeader, PathField, Rail, RailGroup, RailItem, Segmented, Skeleton,
-    SortDirection, Spinner, StatusBadge, StatusBar, Switch, TermBlock, TextField, Timeline, Tip,
-    Toast, TopBar,
+    MenuEntry, Meter, PageHeader, PathField, Rail, RailBrand, RailGroup, RailItem, Segmented,
+    Skeleton, SortDirection, Spinner, StatusBadge, StatusBar, Switch, TermBlock, TextField,
+    Timeline, Tip, Toast, TopBar,
 };
+use hades_ui::icons::{Icon, IconName};
 
 #[derive(Default)]
 struct Gallery {
@@ -31,6 +33,7 @@ struct Gallery {
     confirmando: bool,
     chaves: [bool; 2],
     ultimo_menu: Option<SharedString>,
+    rolagem: gpui::ScrollHandle,
 }
 
 impl Render for Gallery {
@@ -186,13 +189,22 @@ impl Render for Gallery {
             RailGroup::new(
                 "Hades",
                 [
-                    RailItem::new("Visão geral"),
-                    RailItem::new("Orquestração").badge("3").alive(true),
-                    RailItem::new("Fila de gates").badge("1"),
+                    RailItem::new("Visão geral").icon(IconName::LayoutDashboard),
+                    RailItem::new("Orquestração")
+                        .icon(IconName::Grafo)
+                        .badge("3")
+                        .alive(true),
+                    RailItem::new("Fila de gates")
+                        .icon(IconName::ListOrdered)
+                        .badge("1"),
                 ],
             ),
-            RailGroup::new("Ambiente", [RailItem::new("Configurações")]),
+            RailGroup::new(
+                "Ambiente",
+                [RailItem::new("Configurações").icon(IconName::SlidersHorizontal)],
+            ),
         ])
+        .brand(RailBrand::hades())
         .selected(self.pagina.clone().unwrap_or_else(|| "Visão geral".into()))
         .on_select(cx.listener(|this, label: &SharedString, _, cx| {
             this.pagina = Some(label.clone());
@@ -200,6 +212,7 @@ impl Render for Gallery {
         }));
         let main = div()
             .id("main")
+            .track_scroll(&self.rolagem)
             .overflow_y_scroll()
             .flex_1()
             .min_w_0()
@@ -310,7 +323,10 @@ impl Render for Gallery {
             .size_full()
             .child(TopBar::new("Hades UI · gallery"))
             .child(div().flex().flex_1().min_h_0().child(rail).child(main))
-            .child(StatusBar::new("gallery", "hades-ui 0.2.0"))
+            .child(StatusBar::new(
+                "gallery",
+                concat!("hades-ui ", env!("CARGO_PKG_VERSION")),
+            ))
             .children(dialogo)
     }
 }
@@ -338,7 +354,7 @@ fn estados(g: &Gallery, this: &gpui::Entity<Gallery>) -> impl IntoElement {
         let id = |s: &str| SharedString::from(format!("{s}-{i}"));
         botoes = botoes.child(
             linha(nome)
-                .child(Btn::new(id("n"), "Normal").kind(kind))
+                .child(Btn::new(id("n"), "Normal").kind(kind).icon(IconName::Play))
                 .child(
                     Btn::new(id("d"), "Desabilitado")
                         .kind(kind)
@@ -352,7 +368,11 @@ fn estados(g: &Gallery, this: &gpui::Entity<Gallery>) -> impl IntoElement {
             .child(Btn::new("xs", "Xs").size(ButtonSize::Xs))
             .child(Btn::new("md", "Md").size(ButtonSize::Md))
             .child(Btn::new("lg", "Lg").size(ButtonSize::Lg))
-            .child(Btn::new("ic", "+").size(ButtonSize::Icon)),
+            .child(
+                Btn::new("ic", "")
+                    .size(ButtonSize::Icon)
+                    .icon(IconName::Plus),
+            ),
     );
     let chave = |i: usize| {
         let this = this.clone();
@@ -473,21 +493,42 @@ fn estados(g: &Gallery, this: &gpui::Entity<Gallery>) -> impl IntoElement {
         )
         .child(
             linha("Menu")
-                .child(Menu::new("menu-fixo", lista()))
-                .child(ContextMenu::new(
-                    "ctx",
-                    div().px(px(12.0)).py(px(20.0)).child(match &g.ultimo_menu {
-                        Some(m) => format!("Clique direito aqui · último: {m}"),
-                        None => "Clique direito aqui".to_string(),
-                    }),
-                    entradas,
-                )),
+                .child(
+                    Menu::new("menu-fixo", lista())
+                        .icon(0, IconName::ExternalLink)
+                        .icon(1, IconName::Copy)
+                        .icon(2, IconName::Pencil)
+                        .icon(4, IconName::Trash2),
+                )
+                .child(
+                    ContextMenu::new(
+                        "ctx",
+                        div().px(px(12.0)).py(px(20.0)).child(match &g.ultimo_menu {
+                            Some(m) => format!("Clique direito aqui · último: {m}"),
+                            None => "Clique direito aqui".to_string(),
+                        }),
+                        entradas,
+                    )
+                    .icon(0, IconName::ExternalLink)
+                    .icon(4, IconName::Trash2),
+                ),
         )
         .child(linha("Toast").child(toasts))
+        .child(
+            linha("Ícones").child(
+                div()
+                    .flex()
+                    .flex_wrap()
+                    .gap(px(10.0))
+                    .max_w(px(720.0))
+                    .children(IconName::ALL.iter().map(|&i| Icon::new(i))),
+            ),
+        )
 }
 
 fn main() {
     let dark = std::env::args().any(|a| a == "--dark");
+    let fim = std::env::args().any(|a| a == "--fim");
     gpui_platform::application().run(move |cx: &mut App| {
         hades_ui::init(
             cx,
@@ -499,9 +540,15 @@ fn main() {
         );
         let aberta = cx.open_window(WindowOptions::default(), |window, cx| {
             window.set_window_title("Hades UI");
-            cx.new(|_| Gallery {
-                chaves: [true, false],
-                ..Default::default()
+            cx.new(|_| {
+                let g = Gallery {
+                    chaves: [true, false],
+                    ..Default::default()
+                };
+                if fim {
+                    g.rolagem.scroll_to_bottom();
+                }
+                g
             })
         });
         if aberta.is_err() {

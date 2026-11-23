@@ -86,6 +86,14 @@ usa Figtree e Geist Mono. Nenhuma instalação de fonte no sistema. Origem, comm
 `crates/hades-ui/assets/fonts/README.md`. As três famílias são SIL OFL 1.1 (texto em `OFL-<Família>.txt` na mesma
 pasta), compatível com a licença MIT do crate; ao redistribuir o binário, mantenha esses avisos.
 
+## Ícones
+
+O módulo `icons` embute 171 SVGs (`assets/icons/`), renderizados pelo `svg()` do gpui com a cor do texto. Vêm do Lucide
+v0.460.0 (licença ISC, texto em `assets/icons/LICENSE`) e de alguns ícones próprios do painel. `IconName::ALL` lista
+todos; `Icon` desenha um; `brand_mark` e `HADES_MARK` trazem o glifo da marca. `RailItem`, `Button`, `Toast` e `Menu`
+aceitam ícone opcional (`Menu::icon(índice)`), e `Rail::brand(RailBrand)` põe a marca no topo da sidebar. Mudanças
+aditivas, sem quebra de API.
+
 ## Relação com o Hades-Skill
 
 Faz parte da reescrita em Rust das ferramentas do [Hades-Skill](https://github.com/The-Hades-Organization/Hades-Skill). O Hades-Skill continua sendo a fonte até o corte, quando passa a chamar o binário.

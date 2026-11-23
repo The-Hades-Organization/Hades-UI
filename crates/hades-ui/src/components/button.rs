@@ -8,6 +8,7 @@ use gpui::{
 use gpui_component::tooltip::Tooltip;
 
 use super::Spinner;
+use crate::icons::{Icon, IconName};
 use crate::theme::palette;
 use crate::tokens::{Palette, control, size};
 
@@ -47,6 +48,7 @@ pub struct Button {
     label: SharedString,
     kind: ButtonKind,
     size: ButtonSize,
+    icon: Option<IconName>,
     loading: bool,
     disabled_reason: Option<SharedString>,
     on_click: Option<ClickHandler>,
@@ -59,6 +61,7 @@ impl Button {
             label: label.into(),
             kind: ButtonKind::default(),
             size: ButtonSize::default(),
+            icon: None,
             loading: false,
             disabled_reason: None,
             on_click: None,
@@ -76,6 +79,12 @@ impl Button {
 
     pub fn size(mut self, size: ButtonSize) -> Self {
         self.size = size;
+        self
+    }
+
+    /// Ícone antes do rótulo, na cor do texto do botão; carregando, o giro toma o lugar dele.
+    pub fn icon(mut self, icon: IconName) -> Self {
+        self.icon = Some(icon);
         self
     }
 
@@ -152,6 +161,14 @@ impl RenderOnce for Button {
         }
         if let Some(bg) = bg {
             base = base.bg(bg);
+        }
+        if let Some(icon) = self.icon.filter(|_| !self.loading) {
+            let side = if self.size == ButtonSize::Xs {
+                14.0
+            } else {
+                16.0
+            };
+            base = base.child(Icon::new(icon).size(px(side)));
         }
         if self.kind == ButtonKind::Link {
             let underline_hover = p.primary;

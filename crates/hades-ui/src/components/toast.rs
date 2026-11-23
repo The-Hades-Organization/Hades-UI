@@ -7,6 +7,7 @@ use gpui::{
 };
 
 use super::{Dot, Spinner};
+use crate::icons::{Icon, IconName};
 use crate::theme::palette;
 use crate::tokens::{Tone, motion, size};
 
@@ -21,6 +22,7 @@ pub struct Toast {
     tone: Tone,
     title: SharedString,
     description: Option<SharedString>,
+    icon: Option<IconName>,
     on_close: Option<CloseHandler>,
 }
 
@@ -31,6 +33,7 @@ impl Toast {
             tone,
             title: title.into(),
             description: None,
+            icon: None,
             on_close: None,
         }
     }
@@ -40,9 +43,27 @@ impl Toast {
         self
     }
 
+    /// Troca o ícone do tipo (`TOAST` do painel) por outro, na mesma cor.
+    pub fn icon(mut self, icon: IconName) -> Self {
+        self.icon = Some(icon);
+        self
+    }
+
     pub fn on_close(mut self, f: impl Fn(&ClickEvent, &mut Window, &mut App) + 'static) -> Self {
         self.on_close = Some(Rc::new(f));
         self
+    }
+}
+
+/// Ícone do tipo, como no `TOAST` do painel; `Neutral` e `Vivo` não têm e ficam com o ponto.
+pub(crate) fn tone_icon(tone: Tone) -> Option<IconName> {
+    match tone {
+        Tone::Ok => Some(IconName::CircleCheck),
+        Tone::Bad => Some(IconName::CircleX),
+        Tone::Warn => Some(IconName::TriangleAlert),
+        Tone::Info => Some(IconName::Info),
+        Tone::Busy => Some(IconName::LoaderCircle),
+        Tone::Neutral | Tone::Vivo => None,
     }
 }
 
@@ -62,6 +83,11 @@ impl RenderOnce for Toast {
             Spinner::new((self.id.clone(), "giro"))
                 .size(16.0)
                 .color(color)
+                .into_any_element()
+        } else if let Some(icon) = self.icon.or(tone_icon(self.tone)) {
+            div()
+                .mt(px(2.0))
+                .child(Icon::new(icon).color(color))
                 .into_any_element()
         } else {
             div()
@@ -88,12 +114,11 @@ impl RenderOnce for Toast {
         }
         let mut close = div()
             .id((self.id.clone(), "fechar"))
-            .px(px(2.0))
+            .p(px(2.0))
             .text_color(p.muted_fg)
-            .text_size(px(size::BODY))
             .cursor_pointer()
             .hover(move |s| s.text_color(p.fg))
-            .child("×");
+            .child(Icon::new(IconName::X).size(px(14.0)));
         if let Some(f) = self.on_close {
             close = close.on_click(move |e, window, cx| f(e, window, cx));
         }

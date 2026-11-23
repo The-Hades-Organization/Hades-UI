@@ -6,6 +6,7 @@ use gpui::{
     StatefulInteractiveElement, Styled, Window, anchored, deferred, div, px,
 };
 
+use crate::icons::{Icon, IconName};
 use crate::theme::palette;
 use crate::tokens::{Palette, motion, size};
 
@@ -66,6 +67,7 @@ impl MenuEntry {
 pub struct Menu {
     id: ElementId,
     entries: Vec<MenuEntry>,
+    icons: Vec<(usize, IconName)>,
 }
 
 impl Menu {
@@ -73,8 +75,23 @@ impl Menu {
         Self {
             id: id.into(),
             entries: entries.into_iter().collect(),
+            icons: Vec::new(),
         }
     }
+
+    /// Ícone de 16 px antes do rótulo da entrada `index` (contando separadores), na cor do texto do item.
+    pub fn icon(mut self, index: usize, icon: IconName) -> Self {
+        self.icons.retain(|(i, _)| *i != index);
+        self.icons.push((index, icon));
+        self
+    }
+}
+
+fn icon_at(icons: &[(usize, IconName)], index: usize) -> Option<IconName> {
+    icons
+        .iter()
+        .find(|(i, _)| *i == index)
+        .map(|(_, icon)| *icon)
 }
 
 impl RenderOnce for Menu {
@@ -104,7 +121,15 @@ impl RenderOnce for Menu {
                     danger,
                     disabled,
                     on_click,
-                } => item(&p, i, label, danger, disabled, on_click),
+                } => item(
+                    &p,
+                    i,
+                    icon_at(&self.icons, i),
+                    label,
+                    danger,
+                    disabled,
+                    on_click,
+                ),
             });
         }
         panel.with_animation(
@@ -118,6 +143,7 @@ impl RenderOnce for Menu {
 fn item(
     p: &Palette,
     i: usize,
+    icon: Option<IconName>,
     label: SharedString,
     danger: bool,
     disabled: bool,
@@ -128,15 +154,18 @@ fn item(
     } else {
         (p.fg, p.hover)
     };
-    let row = div()
+    let mut row = div()
         .id(ElementId::NamedInteger("menu-item".into(), i as u64))
         .flex()
         .items_center()
         .gap(px(8.0))
         .px(px(8.0))
         .py(px(6.0))
-        .text_color(fg)
-        .child(label);
+        .text_color(fg);
+    if let Some(icon) = icon {
+        row = row.child(Icon::new(icon));
+    }
+    let row = row.child(label);
     if disabled {
         return row.opacity(0.5).into_any_element();
     }
@@ -161,6 +190,7 @@ pub struct ContextMenu {
     id: ElementId,
     child: AnyElement,
     entries: MenuBuilder,
+    icons: Vec<(usize, IconName)>,
 }
 
 impl ContextMenu {
@@ -173,7 +203,15 @@ impl ContextMenu {
             id: id.into(),
             child: child.into_any_element(),
             entries: Rc::new(entries),
+            icons: Vec::new(),
         }
+    }
+
+    /// Ícone da entrada `index` do menu aberto; ver [`Menu::icon`].
+    pub fn icon(mut self, index: usize, icon: IconName) -> Self {
+        self.icons.retain(|(i, _)| *i != index);
+        self.icons.push((index, icon));
+        self
     }
 }
 
@@ -229,7 +267,13 @@ impl RenderOnce for ContextMenu {
                                 cx.notify();
                             });
                         })
-                        .child(Menu::new((self.id, "menu"), entries)),
+                        .child(
+                            self.icons
+                                .into_iter()
+                                .fold(Menu::new((self.id, "menu"), entries), |menu, (i, icon)| {
+                                    menu.icon(i, icon)
+                                }),
+                        ),
                 ),
             ));
         }

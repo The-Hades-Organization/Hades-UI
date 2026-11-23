@@ -3,11 +3,13 @@ use std::rc::Rc;
 use gpui::{
     App, BoxShadow, ElementId, FontWeight, InteractiveElement, IntoElement, ParentElement,
     RenderOnce, SharedString, StatefulInteractiveElement, Styled, Window, div, linear_color_stop,
-    linear_gradient, point, px,
+    linear_gradient, point, prelude::FluentBuilder, px,
 };
 
+use super::Tracked;
+use crate::icons::{Icon, IconName, brand_mark};
 use crate::theme::palette;
-use crate::tokens::{FONT_MONO, RAIL_WIDTH, control, size};
+use crate::tokens::{FONT_HEADING, FONT_MONO, RAIL_WIDTH, control, size};
 
 type SelectHandler = Rc<dyn Fn(&SharedString, &mut Window, &mut App)>;
 
@@ -16,6 +18,7 @@ pub struct RailItem {
     label: SharedString,
     badge: Option<SharedString>,
     alive: bool,
+    icon: Option<IconName>,
 }
 
 impl RailItem {
@@ -24,7 +27,14 @@ impl RailItem {
             label: label.into(),
             badge: None,
             alive: false,
+            icon: None,
         }
+    }
+
+    /// Ícone de 15 px antes do rótulo: `rail-muted`, ou metal no item atual.
+    pub fn icon(mut self, icon: IconName) -> Self {
+        self.icon = Some(icon);
+        self
     }
 
     /// Página com atividade: o ponto de luz acende inteiro, longe ou perto da atual.
@@ -54,6 +64,84 @@ impl RailGroup {
     }
 }
 
+/// Glifo da [`RailBrand`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum BrandGlyph {
+    Hades,
+    Icon(IconName),
+}
+
+/// Marca no topo do [`Rail`] (`Brand` do painel): glifo de 32 px em metal, nome em Marcellus 20 px com
+/// espaçamento de .22em e subtítulo em `rail-muted`.
+pub struct RailBrand {
+    glyph: BrandGlyph,
+    name: SharedString,
+    subtitle: Option<SharedString>,
+}
+
+impl RailBrand {
+    /// Marca com o glifo do Hades; o nome vai em caixa alta.
+    pub fn new(name: impl Into<SharedString>) -> Self {
+        Self {
+            glyph: BrandGlyph::Hades,
+            name: name.into(),
+            subtitle: None,
+        }
+    }
+
+    /// "HADES / skill hades", como no painel.
+    pub fn hades() -> Self {
+        Self::new("Hades").subtitle("skill hades")
+    }
+
+    pub fn subtitle(mut self, subtitle: impl Into<SharedString>) -> Self {
+        self.subtitle = Some(subtitle.into());
+        self
+    }
+
+    /// Troca o glifo do Hades por um ícone do conjunto (ex.: a figura da ferramenta).
+    pub fn icon(mut self, icon: IconName) -> Self {
+        self.glyph = BrandGlyph::Icon(icon);
+        self
+    }
+
+    fn render(self, p: &crate::tokens::Palette) -> impl IntoElement {
+        let glyph = match self.glyph {
+            BrandGlyph::Hades => brand_mark(px(32.0), p.metal).into_any_element(),
+            BrandGlyph::Icon(icon) => Icon::new(icon)
+                .size(px(32.0))
+                .color(p.metal)
+                .into_any_element(),
+        };
+        let mut words = div().flex().flex_col().gap(px(4.0)).min_w_0().child(
+            div()
+                .font_family(FONT_HEADING)
+                .line_height(px(20.0))
+                .text_color(p.rail_fg)
+                .child(Tracked::new(self.name.to_uppercase(), 20.0, 0.22)),
+        );
+        if let Some(subtitle) = self.subtitle {
+            words = words.child(
+                div()
+                    .text_size(px(size::META))
+                    .text_color(p.rail_mute)
+                    .truncate()
+                    .child(subtitle),
+            );
+        }
+        div()
+            .flex()
+            .flex_none()
+            .items_center()
+            .gap(px(12.0))
+            .px(px(16.0))
+            .pt(px(12.0))
+            .pb(px(8.0))
+            .child(glyph)
+            .child(words)
+    }
+}
+
 /// Sidebar do painel, escura nos dois modos: rio de 1 px ligando pontos de luz que perdem força com a distância
 /// da página aberta; a atual leva gradiente metal, filete de 3 px e o óbolo com halo. `selected` é o rótulo ativo.
 /// Com `on_select`, cada item responde a clique e a Enter/Espaço; o estado é do chamador.
@@ -61,6 +149,7 @@ impl RailGroup {
 pub struct Rail {
     id: ElementId,
     groups: Vec<RailGroup>,
+    brand: Option<RailBrand>,
     selected: Option<SharedString>,
     on_select: Option<SelectHandler>,
 }
@@ -70,9 +159,16 @@ impl Rail {
         Self {
             id: "rail".into(),
             groups: groups.into_iter().collect(),
+            brand: None,
             selected: None,
             on_select: None,
         }
+    }
+
+    /// Marca no topo, acima dos grupos.
+    pub fn brand(mut self, brand: RailBrand) -> Self {
+        self.brand = Some(brand);
+        self
     }
 
     /// Identificador do trilho; só precisa mudar se houver mais de um na janela.
@@ -128,8 +224,7 @@ impl RenderOnce for Rail {
                     .pb(px(6.0))
                     .text_color(p.rail_mute)
                     .font_weight(FontWeight::SEMIBOLD)
-                    .text_size(px(size::MICRO))
-                    .child(group.title.to_uppercase()),
+                    .child(Tracked::new(group.title.to_uppercase(), size::MICRO, 0.14)),
             );
             for item in group.items {
                 let on = current == Some(index);
@@ -199,7 +294,21 @@ impl RenderOnce for Rail {
                     }
                 }
                 index += 1;
-                row = row.child(item.label);
+                let label = div()
+                    .flex()
+                    .flex_1()
+                    .min_w_0()
+                    .items_center()
+                    .gap(px(10.0))
+                    .when_some(item.icon, |l, icon| {
+                        l.child(Icon::new(icon).size(px(15.0)).color(if on {
+                            p.metal
+                        } else {
+                            p.rail_mute
+                        }))
+                    })
+                    .child(div().truncate().child(item.label));
+                row = row.child(label);
                 if let Some(badge) = item.badge {
                     row = row.child(
                         div()
@@ -226,6 +335,7 @@ impl RenderOnce for Rail {
             .text_size(px(size::LABEL))
             .border_r_1()
             .border_color(p.rail_line)
+            .when_some(self.brand, |r, b| r.child(b.render(&p)))
             .child(nav)
     }
 }
