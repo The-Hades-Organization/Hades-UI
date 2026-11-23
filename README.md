@@ -9,7 +9,7 @@ Tema e componentes gpui compartilhados pelos apps do Hades.
 ## Estado
 
 Tema e componentes com a identidade visual do painel web do Hades (inventário e divergências em
-[`docs/identidade.md`](docs/identidade.md), capturas em `docs/identidade/`). Nada específico de ferramenta entra aqui.
+[`docs/identidade.md`](docs/identidade.md), capturas do gallery em `docs/identidade/`; as capturas do painel web ficam fora do repo, porque têm dados locais). Nada específico de ferramenta entra aqui.
 
 ## Uso
 
