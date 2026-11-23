@@ -6,7 +6,7 @@ use crate::tokens::{FONT_MONO, FONT_SANS, Palette, RADIUS, size};
 
 /// Paleta ativa; os componentes do `hades-ui` leem daqui.
 #[derive(Clone, Copy)]
-struct ActivePalette(Palette);
+struct ActivePalette(Palette, bool);
 
 impl Global for ActivePalette {}
 
@@ -33,8 +33,24 @@ pub fn set_mode(cx: &mut App, mode: ThemeMode) {
     } else {
         Palette::light()
     };
-    cx.set_global(ActivePalette(palette));
+    cx.set_global(ActivePalette(palette, mode.is_dark()));
     Theme::update(cx, |theme| apply(theme, &palette));
+}
+
+/// Alterna entre claro e escuro e devolve o modo novo; é o que o [`ThemeToggle`](crate::components::ThemeToggle) chama.
+pub fn toggle_mode(cx: &mut App) -> ThemeMode {
+    let next = if is_dark(cx) {
+        ThemeMode::Light
+    } else {
+        ThemeMode::Dark
+    };
+    set_mode(cx, next);
+    next
+}
+
+/// Se o tema ativo é o escuro.
+pub fn is_dark(cx: &App) -> bool {
+    cx.try_global::<ActivePalette>().is_some_and(|p| p.1)
 }
 
 /// Nomeia Figtree e Geist Mono no tema. `init` já chama; use só depois de trocar o tema por fora.

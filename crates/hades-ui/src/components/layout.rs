@@ -87,7 +87,8 @@ impl RenderOnce for Page {
                 div()
                     .flex()
                     .flex_col()
-                    .flex_1()
+                    .flex_grow(1.0)
+                    .flex_shrink_0()
                     .min_h_full()
                     .w_full()
                     .max_w(px(PAGE_MAX_WIDTH))
@@ -102,11 +103,18 @@ impl RenderOnce for Page {
     }
 }
 
+/// Valor de uma linha da [`MetaList`].
+enum MetaValue {
+    Text(SharedString),
+    Mono(SharedString),
+    Element(AnyElement),
+}
+
 /// Lista de metadados (rótulo e valor), uma linha por par. O rótulo fica numa coluna de largura fixa em
 /// `muted-foreground`; o valor ocupa o resto e quebra em vez de cortar, mesmo sem espaço (caminho, sha).
 #[derive(IntoElement)]
 pub struct MetaList {
-    rows: Vec<(SharedString, SharedString, bool)>,
+    rows: Vec<(SharedString, MetaValue)>,
     label_width: f32,
 }
 
@@ -119,13 +127,23 @@ impl MetaList {
     }
 
     pub fn row(mut self, label: impl Into<SharedString>, value: impl Into<SharedString>) -> Self {
-        self.rows.push((label.into(), value.into(), false));
+        self.rows
+            .push((label.into(), MetaValue::Text(value.into())));
         self
     }
 
     /// Linha com o valor em mono (caminho, sha, comando).
     pub fn mono(mut self, label: impl Into<SharedString>, value: impl Into<SharedString>) -> Self {
-        self.rows.push((label.into(), value.into(), true));
+        self.rows
+            .push((label.into(), MetaValue::Mono(value.into())));
+        self
+    }
+
+    /// Linha com um elemento no lugar do valor (ex.: um [`Meter`](super::Meter) com rótulo e valor próprios,
+    /// ou um selo), alinhada às outras.
+    pub fn element(mut self, label: impl Into<SharedString>, value: impl IntoElement) -> Self {
+        self.rows
+            .push((label.into(), MetaValue::Element(value.into_any_element())));
         self
     }
 
@@ -153,11 +171,16 @@ impl RenderOnce for MetaList {
             .min_w_0()
             .text_size(px(size::LABEL))
             .line_height(px(20.0));
-        for (label, value, mono) in self.rows {
-            let mut value = div().flex_1().min_w_0().text_color(p.fg).child(value);
-            if mono {
-                value = value.font_family(FONT_MONO).text_size(px(size::META));
-            }
+        for (label, value) in self.rows {
+            let cell = div().flex_1().min_w_0().text_color(p.fg);
+            let value = match value {
+                MetaValue::Text(t) => cell.child(t),
+                MetaValue::Mono(t) => cell
+                    .font_family(FONT_MONO)
+                    .text_size(px(size::META))
+                    .child(t),
+                MetaValue::Element(e) => cell.pt(px(2.0)).child(e),
+            };
             list = list.child(
                 div()
                     .flex()

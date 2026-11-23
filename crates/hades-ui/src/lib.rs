@@ -7,5 +7,5 @@ pub mod tokens;
 
 pub use gpui_component::ThemeMode;
 pub use icons::{Icon, IconName};
-pub use theme::{init, palette, set_mode, use_brand_fonts};
+pub use theme::{init, is_dark, palette, set_mode, toggle_mode, use_brand_fonts};
 pub use tokens::{Palette, Tone};

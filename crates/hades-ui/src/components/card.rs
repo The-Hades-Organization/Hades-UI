@@ -3,8 +3,9 @@ use gpui::{
     Window, div, px,
 };
 
+use super::StatusBadge;
 use crate::theme::palette;
-use crate::tokens::{CORNER_ARM, CORNER_STROKE, FONT_HEADING, size};
+use crate::tokens::{CORNER_ARM, CORNER_STROKE, FONT_HEADING, Tone, size};
 
 /// Colchetes de canto (`.cantos`): braços de 10 px com traço de 2 px no canto superior esquerdo e no inferior direito.
 /// O pai precisa ser `relative()`.
@@ -31,12 +32,15 @@ pub(crate) fn corners(color: Hsla) -> [Div; 4] {
 }
 
 /// Cartão do painel (`Card` + `CardHeader`): fundo `card` a 96%, sem borda nem sombra, com colchetes de canto
-/// na cor `line`. O título usa a fonte de título a 18 px, com `meta` ao lado e `action` à direita. `object()` é a variante compacta (p 14, gap 10).
+/// na cor `line`. O título usa a fonte de título a 18 px, com `meta` ao lado e, à direita, o selo de estado
+/// (`badge`) e as ações (`action`). `object()` é a variante compacta (p 14, gap 10). [`Meter`](super::Meter) e
+/// [`MetaList`](super::MetaList) entram como filhos e ocupam a largura do cartão.
 #[derive(IntoElement)]
 pub struct Card {
     title: Option<SharedString>,
     description: Option<SharedString>,
     meta: Option<SharedString>,
+    badge: Option<StatusBadge>,
     actions: Vec<AnyElement>,
     object: bool,
     fill: bool,
@@ -49,6 +53,7 @@ impl Card {
             title: None,
             description: None,
             meta: None,
+            badge: None,
             actions: Vec::new(),
             object: false,
             fill: false,
@@ -72,7 +77,19 @@ impl Card {
         self
     }
 
-    /// Ação no canto direito do cabeçalho (botão, selo).
+    /// Selo de estado no cabeçalho, à esquerda das ações (ex.: "Escolhida" em `Ok` com visto, "pulada" em
+    /// `Neutral`). Para selo com ícone, use [`Card::status`].
+    pub fn badge(self, label: impl Into<SharedString>, tone: Tone) -> Self {
+        self.status(StatusBadge::new(label, tone))
+    }
+
+    /// Selo de estado montado pelo chamador (com ícone, por exemplo).
+    pub fn status(mut self, badge: StatusBadge) -> Self {
+        self.badge = Some(badge);
+        self
+    }
+
+    /// Ação no canto direito do cabeçalho (botão, botão de ícone); várias ficam lado a lado, depois do selo.
     pub fn action(mut self, element: impl IntoElement) -> Self {
         self.actions.push(element.into_any_element());
         self
@@ -127,6 +144,7 @@ impl RenderOnce for Card {
         if self.title.is_some()
             || self.description.is_some()
             || self.meta.is_some()
+            || self.badge.is_some()
             || !self.actions.is_empty()
         {
             let mut line = div()
@@ -172,7 +190,9 @@ impl RenderOnce for Card {
                         .flex()
                         .flex_none()
                         .items_center()
+                        .flex_wrap()
                         .gap(px(8.0))
+                        .children(self.badge)
                         .children(self.actions),
                 ),
             );

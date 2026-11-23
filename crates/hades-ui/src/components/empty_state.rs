@@ -61,6 +61,7 @@ impl RenderOnce for EmptyState {
                 div()
                     .text_color(p.muted_fg)
                     .text_size(px(size::LABEL))
+                    .text_center()
                     .child(hint),
             );
         }

@@ -1,14 +1,11 @@
-//! Mostra tema e componentes base. O botão do cabeçalho alterna claro e escuro; `--dark` abre no escuro e `--fim`
-//! abre rolado até o fim (menu, toast e ícones).
+//! Mostra tema e componentes base. O botão no pé do trilho alterna claro e escuro; `--dark` abre no escuro,
+//! `--recolhida` abre com o trilho recolhido e `--fim` abre rolado até o fim (menu, toast e ícones).
 use gpui::prelude::FluentBuilder as _;
 use gpui::{
     App, AppContext, Context, InteractiveElement, IntoElement, ParentElement, Render, SharedString,
     StatefulInteractiveElement, Styled, Window, WindowOptions, div, px,
 };
-use gpui_component::{
-    ActiveTheme as _,
-    input::{InputEvent, InputState},
-};
+use gpui_component::input::{InputEvent, InputState};
 use hades_ui::ThemeMode;
 use hades_ui::Tone;
 use hades_ui::components::{
@@ -34,10 +31,20 @@ struct Gallery {
     chaves: [bool; 2],
     ultimo_menu: Option<SharedString>,
     rolagem: gpui::ScrollHandle,
+    recolhida: bool,
+    pulada: bool,
+    rolar_ao_fim: bool,
 }
 
 impl Render for Gallery {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        if self.rolar_ao_fim {
+            if self.rolagem.max_offset().y > px(0.0) {
+                self.rolagem.scroll_to_bottom();
+                self.rolar_ao_fim = false;
+            }
+            window.request_animation_frame();
+        }
         let campo = match self.campo.clone() {
             Some(c) => c,
             None => {
@@ -56,17 +63,6 @@ impl Render for Gallery {
                 c
             }
         };
-        let dark = cx.theme().mode.is_dark();
-        let toggle = Btn::new("modo", if dark { "Claro" } else { "Escuro" })
-            .kind(ButtonKind::Secondary)
-            .on_click(|_, _, cx| {
-                let next = if cx.theme().mode.is_dark() {
-                    ThemeMode::Light
-                } else {
-                    ThemeMode::Dark
-                };
-                hades_ui::set_mode(cx, next);
-            });
         let this = cx.entity();
         let estados = estados(self, &this);
         let controles = Card::new()
@@ -190,6 +186,7 @@ impl Render for Gallery {
                 "Hades",
                 [
                     RailItem::new("Visão geral").icon(IconName::LayoutDashboard),
+                    RailItem::new("Serviços").icon(IconName::Server).count(0, 1),
                     RailItem::new("Orquestração")
                         .icon(IconName::Grafo)
                         .badge("3")
@@ -208,11 +205,22 @@ impl Render for Gallery {
             ),
         ])
         .brand(RailBrand::new("Moirai").subtitle("planos e estimativas"))
-        .footer(
+        .stat(
             RailStat::new("Memória", "1,2 GiB · teto 4 GiB")
                 .fraction(0.3)
                 .tone(Tone::Ok),
         )
+        .theme_toggle()
+        .collapsed(self.recolhida)
+        .on_collapse({
+            let this = this.clone();
+            move |recolher, _, cx| {
+                this.update(cx, |g, cx| {
+                    g.recolhida = recolher;
+                    cx.notify();
+                })
+            }
+        })
         .selected(self.pagina.clone().unwrap_or_else(|| "Visão geral".into()))
         .on_select(cx.listener(|this, label: &SharedString, _, cx| {
             this.pagina = Some(label.clone());
@@ -227,12 +235,23 @@ impl Render for Gallery {
                         "Escolher só marca o recurso: nada roda até você confirmar. Os passos abaixo \
                          mostram o comando de cada um, com o botão de copiar embutido no bloco.",
                     )
+                    .action(
+                        Btn::new("tour", "Fazer o tour")
+                            .kind(ButtonKind::Secondary)
+                            .icon(IconName::Compass),
+                    )
+                    .action(
+                        Btn::new("verificar", "Verificar de novo")
+                            .kind(ButtonKind::Ghost)
+                            .icon(IconName::RefreshCw),
+                    )
                     .action(IconButton::new(
                         "congelar",
                         IconName::Snowflake,
                         "Congelar a tela",
                     ))
-                    .action(toggle),
+                    .meta("main @ 1a2b3c4")
+                    .meta_icon(IconName::GitBranch),
             )
             .child(KpiStrip::new([
                 Kpi::new("Agentes ativos", "7"),
@@ -291,6 +310,7 @@ impl Render for Gallery {
                         ),
                     ),
             )
+            .child(escolhas(self, &this))
             .child(
                 Card::new()
                     .title("Blocos de código")
@@ -366,6 +386,23 @@ impl Render for Gallery {
                     )
                     .child(
                         div().flex().flex_col().flex_1().child(
+                            Card::new()
+                                .title("Novo plano")
+                                .fill()
+                                .child(TextField::new(&campo).label("Intervalo"))
+                                .child(div().flex_1())
+                                .child(
+                                    div().flex().justify_end().child(
+                                        Btn::new("estacionar", "Estacionar")
+                                            .primary()
+                                            .icon(IconName::Pause)
+                                            .disabled("Nenhum pacote selecionado"),
+                                    ),
+                                ),
+                        ),
+                    )
+                    .child(
+                        div().flex().flex_col().flex_1().child(
                             EmptyState::new("Nenhum agente ativo")
                                 .hint("Recrute um pelo Argos.")
                                 .fill(),
@@ -395,12 +432,79 @@ impl Render for Gallery {
             .flex_col()
             .size_full()
             .child(div().flex().flex_1().min_h_0().child(rail).child(main))
-            .child(StatusBar::new(
-                "gallery",
-                concat!("hades-ui ", env!("CARGO_PKG_VERSION")),
-            ))
+            .child(
+                StatusBar::new("gallery", "dados fictícios")
+                    .version(concat!("hades-ui ", env!("CARGO_PKG_VERSION"))),
+            )
             .children(dialogo)
     }
+}
+
+/// Dois cartões no molde do Onboarding do painel: selo de estado e ação no cabeçalho, `Meter` e `MetaList`
+/// (com um `Meter` numa linha) dentro do cartão.
+fn escolhas(g: &Gallery, this: &gpui::Entity<Gallery>) -> impl IntoElement {
+    let alternar = {
+        let this = this.clone();
+        move |_: &gpui::ClickEvent, _: &mut Window, cx: &mut App| {
+            this.update(cx, |g, cx| {
+                g.pulada = !g.pulada;
+                cx.notify();
+            })
+        }
+    };
+    let acesso = Card::new()
+        .title("Acesso remoto")
+        .meta("escolhida · 5 de 7 feitos")
+        .description("Abrir o painel fora da máquina, inclusive no celular.")
+        .status(StatusBadge::new("Escolhida", Tone::Ok).icon(IconName::Check))
+        .action(
+            Btn::new("pular", "Pular")
+                .kind(ButtonKind::Ghost)
+                .size(ButtonSize::Xs),
+        )
+        .child(Meter::new(5.0 / 7.0).label("Passos").value("5 de 7"))
+        .child(
+            MetaList::new()
+                .label_width(120.0)
+                .mono("Endereço", "https://exemplo.invalid/painel")
+                .element("Janela 5h", Meter::new(0.38).label("uso").value("38%"))
+                .row("Dono do passo", "você faz"),
+        );
+    let notificacoes = if g.pulada {
+        Card::new()
+            .title("Notificações")
+            .meta("pulada · 1 de 4 feitos")
+            .badge("pulada", Tone::Neutral)
+            .action(
+                Btn::new("escolher", "Escolher")
+                    .icon(IconName::Plus)
+                    .size(ButtonSize::Xs)
+                    .on_click(alternar),
+            )
+    } else {
+        Card::new()
+            .title("Notificações")
+            .meta("escolhida · 1 de 4 feitos")
+            .status(StatusBadge::new("Escolhida", Tone::Ok).icon(IconName::Check))
+            .action(
+                Btn::new("escolher", "Pular")
+                    .kind(ButtonKind::Ghost)
+                    .size(ButtonSize::Xs)
+                    .on_click(alternar),
+            )
+    }
+    .description("Avisos de gate, serviço caído e review, no desktop e no celular.")
+    .child(
+        Meter::new(0.25)
+            .tone(Tone::Warn)
+            .label("Passos")
+            .value("1 de 4"),
+    );
+    div()
+        .flex()
+        .gap(px(12.0))
+        .child(div().flex_1().min_w_0().child(acesso))
+        .child(div().flex_1().min_w_0().child(notificacoes))
 }
 
 fn linha(rotulo: &'static str) -> gpui::Div {
@@ -601,6 +705,7 @@ fn estados(g: &Gallery, this: &gpui::Entity<Gallery>) -> impl IntoElement {
 fn main() {
     let dark = std::env::args().any(|a| a == "--dark");
     let fim = std::env::args().any(|a| a == "--fim");
+    let recolhida = std::env::args().any(|a| a == "--recolhida");
     gpui_platform::application().run(move |cx: &mut App| {
         hades_ui::init(
             cx,
@@ -612,15 +717,12 @@ fn main() {
         );
         let aberta = cx.open_window(WindowOptions::default(), |window, cx| {
             window.set_window_title("Hades UI");
-            cx.new(|_| {
-                let g = Gallery {
-                    chaves: [true, false],
-                    ..Default::default()
-                };
-                if fim {
-                    g.rolagem.scroll_to_bottom();
-                }
-                g
+            cx.new(|_| Gallery {
+                chaves: [true, false],
+                recolhida,
+                pulada: true,
+                rolar_ao_fim: fim,
+                ..Default::default()
             })
         });
         if aberta.is_err() {

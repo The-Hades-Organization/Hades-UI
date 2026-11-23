@@ -4,6 +4,7 @@ use gpui::{
 };
 
 use super::Spinner;
+use crate::icons::{Icon, IconName};
 use crate::theme::palette;
 use crate::tokens::{Tone, size};
 
@@ -13,6 +14,7 @@ use crate::tokens::{Tone, size};
 pub struct StatusBadge {
     label: SharedString,
     tone: Tone,
+    icon: Option<IconName>,
 }
 
 impl StatusBadge {
@@ -20,7 +22,14 @@ impl StatusBadge {
         Self {
             label: label.into(),
             tone,
+            icon: None,
         }
+    }
+
+    /// Ícone de 12 px antes do rótulo, na cor do texto (ex.: o visto de "Escolhida").
+    pub fn icon(mut self, icon: IconName) -> Self {
+        self.icon = Some(icon);
+        self
     }
 }
 
@@ -43,6 +52,9 @@ impl RenderOnce for StatusBadge {
         if self.tone == Tone::Busy {
             let id = ElementId::Name(format!("selo-{}", self.label).into());
             badge = badge.child(Spinner::new(id).size(12.0).color(p.bg));
+        }
+        if let Some(icon) = self.icon {
+            badge = badge.child(Icon::new(icon).size(px(12.0)).color(p.bg));
         }
         badge.child(self.label)
     }
