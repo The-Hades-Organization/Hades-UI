@@ -99,6 +99,34 @@ aceitam ícone opcional (`Menu::icon(índice)`), e `Rail::brand(RailBrand)` põe
 `RailBrand::new("Moirai").subtitle("planos e estimativas")`; `RailBrand::hades()` fica só para o painel do Hades. Mudanças
 aditivas, sem quebra de API.
 
+## Migração de 0.2.2 para 0.2.3
+
+Aditiva, com uma correção que afeta todos os apps: `Page` volta a rolar quando o conteúdo passa da janela.
+
+- Tema na janela: `Rail::theme_toggle()` põe o botão de claro/escuro no rodapé da sidebar, sem barra superior.
+  `--dark` continua valendo no início.
+- Sidebar recolhível: `Rail::collapsed(bool).on_collapse(..)`; recolhida, mostra só os ícones, com tooltip. O estado
+  (`recolhida: bool`) fica no app.
+- `Rail::footer(RailStat)` vira `Rail::stat(RailStat)`, que usa a forma curta quando recolhida.
+- `RailItem::count(feitos, total)` mostra contador por item ("0/1").
+- `Card::badge`/`status` (selo de estado no cabeçalho), ação no cabeçalho, e `MetaList` e `Meter` combináveis dentro do
+  cartão (`MetaList::element`). Com `Card::fill`, o formulário estica e o estado vazio fica centralizado.
+- `PageHeader`: título e subtítulo à esquerda; ações e `.meta(texto)`/`.meta_icon(IconName)` à direita; `.description`
+  em largura cheia abaixo.
+- `StatusBar::new(..).version("<app> <versão>")` põe o rótulo de versão na ponta direita; não ponha a versão no texto.
+- Ícones: 24 SVGs do Lucide saíam sem retângulo (server, layout-dashboard, pause, copy, panel-left-*, lock...);
+  regenerados.
+- Paleta (aviso) e botão primário desabilitado já seguiam o painel; sem mudança.
+
+Por app:
+
+- Moirai: `RailItem::count` onde a referência tem contador; rever o texto da descrição do Estimar (agora em largura
+  cheia); telas com tabela curta podem usar `Card::fill` + `DataTable::fill`.
+- Thanatos: formulário de Novo em `Card::new().fill()` com espaçador `div().flex_1()` antes dos botões; cartões de Fontes
+  com `Card::badge`/`status`, `MetaList` e `Meter`.
+- Caronte: cabeçalho com `.meta("<branch> @ <sha>").meta_icon(IconName::GitBranch)` e ações secundárias
+  (`ButtonKind::Ghost`); cartões de Partes e Worktrees com selo e ação no cabeçalho; `.version("caronte <versão>")`.
+
 ## Migração de 0.2.1 para 0.2.2
 
 Aditiva, com três mudanças de aparência:
