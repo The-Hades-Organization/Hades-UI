@@ -9,12 +9,13 @@ use gpui_component::input::{InputEvent, InputState};
 use hades_ui::ThemeMode;
 use hades_ui::Tone;
 use hades_ui::components::{
-    Align, Button as Btn, ButtonKind, ButtonSize, Card, Confirm, ContextMenu, CopyButton,
-    DataTable, Dot, EmptyState, FilterBar, Fio, FioState, IconButton, Kbd, Kpi, KpiStrip,
-    MarkdownView, Menu, MenuEntry, MetaList, Meter, Page, PageHeader, PathField, Rail, RailBrand,
-    RailGroup, RailItem, RailStat, Segmented, Select, SelectOption, SettingOrigin, SettingRow,
-    SettingsBar, SettingsGroup, Sheet, Skeleton, SortDirection, Spinner, StatusBadge, StatusBar,
-    Switch, TermBlock, TextField, Timeline, Tip, Toast,
+    Align, AreaChart, Button as Btn, ButtonKind, ButtonSize, Card, ChartSeries, CommandPalette,
+    Confirm, ContextMenu, CopyButton, DataTable, Dot, EmptyState, FilterBar, Fio, FioState,
+    IconButton, Kbd, Kpi, KpiStrip, LogView, MarkdownView, Menu, MenuEntry, MetaList, Meter, Page,
+    PageHeader, PaletteItem, PathField, Rail, RailBrand, RailGroup, RailItem, RailStat, Segmented,
+    Select, SelectOption, SettingOrigin, SettingRow, SettingsBar, SettingsGroup, Sheet, Skeleton,
+    SortDirection, Sparkline, Spinner, StatusBadge, StatusBar, Switch, TermBlock, TextField,
+    Timeline, Tip, Toast,
 };
 use hades_ui::icons::{Icon, IconName};
 
@@ -43,6 +44,10 @@ struct Gallery {
     cfg_salvo: bool,
     cfg_modo: Option<SharedString>,
     detalhe: bool,
+    paleta: bool,
+    ultimo_cmd: Option<SharedString>,
+    log_busca: Option<gpui::Entity<InputState>>,
+    log_seguir: bool,
 }
 
 impl Render for Gallery {
@@ -91,8 +96,23 @@ impl Render for Gallery {
                 (numero, texto)
             }
         };
+        let log_busca = match self.log_busca.clone() {
+            Some(c) => c,
+            None => {
+                let c = cx.new(|cx| InputState::new(window, cx).placeholder("Buscar no log"));
+                cx.subscribe(&c, |_: &mut Gallery, _, e: &InputEvent, cx| {
+                    if matches!(e, InputEvent::Change) {
+                        cx.notify();
+                    }
+                })
+                .detach();
+                self.log_busca = Some(c.clone());
+                c
+            }
+        };
         let this = cx.entity();
         let estados = estados(self, &this);
+        let paineis = paineis(self, &this, &log_busca, cx);
         let controles = Card::new()
             .title("Controles")
             .child(
@@ -375,6 +395,7 @@ impl Render for Gallery {
                     ),
             )
             .child(estados)
+            .child(paineis)
             .child(controles)
             .child(
                 Card::new()
@@ -484,11 +505,34 @@ impl Render for Gallery {
                 )
                 .footer(Btn::new("detalhe-parar", "Parar").kind(ButtonKind::Destructive))
         });
+        let paleta = self.paleta.then(|| {
+            CommandPalette::new("paleta", itens_da_paleta())
+                .on_close({
+                    let this = cx.entity();
+                    move |_, cx| {
+                        this.update(cx, |g, cx| {
+                            g.paleta = false;
+                            cx.notify();
+                        })
+                    }
+                })
+                .on_pick(cx.listener(|g, id: &SharedString, _, cx| {
+                    g.ultimo_cmd = Some(id.clone());
+                    cx.notify();
+                }))
+        });
         div()
             .relative()
             .flex()
             .flex_col()
             .size_full()
+            .on_key_down(cx.listener(|g, e: &gpui::KeyDownEvent, _, cx| {
+                let k = &e.keystroke;
+                if k.key == "k" && (k.modifiers.control || k.modifiers.platform) && !g.paleta {
+                    g.paleta = true;
+                    cx.notify();
+                }
+            }))
             .child(div().flex().flex_1().min_h_0().child(rail).child(main))
             .child(
                 StatusBar::new("gallery", "dados fictícios")
@@ -496,6 +540,7 @@ impl Render for Gallery {
             )
             .children(dialogo)
             .children(painel)
+            .children(paleta)
     }
 }
 
@@ -940,6 +985,126 @@ fn estados(g: &Gallery, this: &gpui::Entity<Gallery>) -> impl IntoElement {
         )
 }
 
+fn itens_da_paleta() -> Vec<PaletteItem> {
+    vec![
+        PaletteItem::new(
+            "ir-visao",
+            "Ir para",
+            "Visão geral",
+            IconName::LayoutDashboard,
+        )
+        .shortcut("G V"),
+        PaletteItem::new("ir-agentes", "Ir para", "Agentes", IconName::Bot).shortcut("G A"),
+        PaletteItem::new("ir-logs", "Ir para", "Logs", IconName::ScrollText),
+        PaletteItem::new(
+            "svc-api",
+            "Serviços",
+            "Reiniciar demo-api",
+            IconName::RotateCw,
+        )
+        .desc("serviço de demonstração"),
+        PaletteItem::new("svc-fila", "Serviços", "Pausar a fila", IconName::Pause)
+            .desc("para de aceitar jobs novos"),
+        PaletteItem::new("tema", "Ações", "Alternar tema", IconName::Moon).shortcut("Ctrl J"),
+        PaletteItem::new(
+            "atualizar",
+            "Ações",
+            "Atualizar o ambiente",
+            IconName::RefreshCw,
+        ),
+    ]
+}
+
+const LOG_FICTICIO: &str = "\
+2026-11-20 10:00:01 INFO  demo-api ouvindo na porta 3000
+2026-11-20 10:00:02 INFO  fila conectada, 3 jobs pendentes
+2026-11-20 10:00:05 WARN  job DEMO-12 demorou 4,1 s (limite 3 s)
+2026-11-20 10:00:07 INFO  job DEMO-13 concluído
+2026-11-20 10:00:09 ERROR job DEMO-14 falhou: conexão recusada
+2026-11-20 10:00:10 INFO  nova tentativa do job DEMO-14 em 5 s
+2026-11-20 10:00:15 INFO  job DEMO-14 concluído
+2026-11-20 10:00:16 INFO  fila vazia";
+
+/// Paleta de comandos (botão e Ctrl K), `Sparkline`, `AreaChart` com teto e `LogView` com busca e seguir.
+fn paineis(
+    g: &Gallery,
+    this: &gpui::Entity<Gallery>,
+    busca: &gpui::Entity<InputState>,
+    cx: &App,
+) -> impl IntoElement {
+    let p = hades_ui::palette(cx);
+    let dias = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"];
+    Card::new()
+        .title("Paleta, gráficos e log")
+        .child(
+            div()
+                .flex()
+                .items_center()
+                .gap(px(10.0))
+                .child(Btn::new("abrir-paleta", "Abrir paleta").on_click({
+                    let this = this.clone();
+                    move |_, _, cx| {
+                        this.update(cx, |g, cx| {
+                            g.paleta = true;
+                            cx.notify();
+                        })
+                    }
+                }))
+                .child(Kbd::new("Ctrl K"))
+                .when_some(g.ultimo_cmd.clone(), |d, id| {
+                    d.child(SharedString::from(format!("último comando: {id}")))
+                }),
+        )
+        .child(
+            div()
+                .flex()
+                .items_center()
+                .gap(px(10.0))
+                .child("Memória na última hora")
+                .child(
+                    Sparkline::new([
+                        310.0, 325.0, 318.0, 340.0, 362.0, 355.0, 371.0, 390.0, 384.0, 402.0,
+                        398.0, 415.0,
+                    ])
+                    .color(p.primary)
+                    .size(120.0, 28.0),
+                ),
+        )
+        .child(
+            AreaChart::new("consumo", dias.iter().map(|d| SharedString::from(*d)))
+                .series(ChartSeries::new(
+                    "Consumo",
+                    [3.2, 4.8, 2.9, 6.1, 5.4, 1.2, 0.8],
+                    p.primary,
+                ))
+                .series(
+                    ChartSeries::new("Média", [3.5; 7], p.muted_fg)
+                        .dashed()
+                        .no_fill(),
+                )
+                .ref_line(6.0, "teto diário")
+                .y_fmt(|v| format!("US$ {v:.1}"))
+                .height(180.0),
+        )
+        .child(
+            div().h(px(220.0)).child(
+                LogView::new("log", LOG_FICTICIO)
+                    .title("demo-api.log")
+                    .search(busca)
+                    .follow(g.log_seguir)
+                    .on_follow({
+                        let this = this.clone();
+                        move |v, _, cx| {
+                            this.update(cx, |g, cx| {
+                                g.log_seguir = v;
+                                cx.notify();
+                            })
+                        }
+                    }),
+            ),
+        )
+}
+
 fn main() {
     let dark = std::env::args().any(|a| a == "--dark");
     let fim = std::env::args().any(|a| a == "--fim");
@@ -960,6 +1125,7 @@ fn main() {
                 recolhida,
                 pulada: true,
                 rolar_ao_fim: fim,
+                log_seguir: true,
                 ..Default::default()
             })
         });

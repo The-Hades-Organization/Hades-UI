@@ -65,6 +65,10 @@ Só o que é genérico de UI e aparece em páginas de design diferentes.
 | `Spinner`, `Skeleton`, `Dot` | giro, placeholder com shimmer e ponto de estado (com pulso) |
 | `Kbd` | tecla de atalho |
 | `Fio`, `FioState` | fio parado, medido, fiando (animado) ou cortado |
+| `CommandPalette`, `PaletteItem` | paleta de comandos sobre a janela: busca sem acento sobre rótulo, descrição e grupo, cabeçalho por grupo, atalho à direita, setas, Enter e Esc; abrir com Ctrl K é do chamador; `filter_palette` é a busca pura |
+| `Sparkline` | tendência curta (ex.: memória na última hora) só com os valores do chamador |
+| `AreaChart`, `ChartSeries` | gráfico de área com rótulo por ponto, séries tracejadas ou sem área, grade com marcas redondas (`nice_ticks`), linha de referência e dica no hover |
+| `LogView`, `LogBuffer` | log em mono com tom por linha, seguir o fim, busca com destaque (`match_ranges`) e buffer por offset (`LogBuffer::apply`) |
 
 `DataTable` aceita ainda `Align::Numeric` (direita, mono), `sorted` + `on_sort` (seta e clique no cabeçalho) e
 `on_select` (clique na linha). A ordenação e a seleção são do chamador.
@@ -100,6 +104,18 @@ todos; `Icon` desenha um; `brand_mark` e `HADES_MARK` trazem o glifo da marca. `
 aceitam ícone opcional (`Menu::icon(índice)`), e `Rail::brand(RailBrand)` põe a marca no topo da sidebar. A marca mostra o nome da ferramenta, não "Hades":
 `RailBrand::new("Moirai").subtitle("planos e estimativas")`; `RailBrand::hades()` fica só para o painel do Hades. Mudanças
 aditivas, sem quebra de API.
+
+## Migração de 0.2.5 para 0.3.0
+
+Aditiva, sem quebra de API; o salto de versão marca o contrato novo de embutir.
+
+- `hades_ui::embed`: contrato `FerramentaEmbutida` (com `FerramentaInfo`, `TelaInfo`, `Comando` e `Embutida`) para o
+  painel embutir a view de uma ferramenta sem o trilho dela. A ferramenta declara id, título, ícone, telas e
+  comandos; o painel desenha o trilho e a paleta e chama `render_tela` e `executar`. `ids_repetidos` confere o
+  contrato num teste da ferramenta. Só o trait e os tipos: nenhuma ferramenta o implementa ainda.
+- Componentes novos: `CommandPalette`, `Sparkline`, `AreaChart` e `LogView`, com a lógica pura exposta para teste
+  (`filter_palette`, `nice_ticks`, `chart_y_max`, `match_ranges`, `visible_lines`, `LogBuffer`).
+- A gallery ganhou o cartão "Paleta, gráficos e log" (botão ou Ctrl K abre a paleta), com dados fictícios.
 
 ## Migração de 0.2.4 para 0.2.5
 

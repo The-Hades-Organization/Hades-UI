@@ -1,6 +1,8 @@
 //! Componentes base, só os que aparecem em ao menos duas das sete páginas de design. Sem lógica de ferramenta.
 mod button;
 mod card;
+mod charts;
+mod command_palette;
 mod confirm;
 mod copy_button;
 mod data_table;
@@ -12,6 +14,7 @@ mod icon_button;
 mod kbd;
 mod kpi_strip;
 mod layout;
+mod log_view;
 mod markdown_view;
 mod menu;
 mod meter;
@@ -38,6 +41,13 @@ mod tracked;
 
 pub use button::{Button, ButtonKind, ButtonSize};
 pub use card::Card;
+pub use charts::{
+    AreaChart, ChartSeries, Sparkline, chart_empty_message, chart_y_max, nearest_index, nice_step,
+    nice_ticks, sparkline_points, x_at, x_label_indices, y_at,
+};
+pub use command_palette::{
+    CommandPalette, PaletteItem, PaletteKey, PaletteState, filter_palette, fold_text,
+};
 pub use confirm::Confirm;
 pub use copy_button::CopyButton;
 pub use data_table::{Align, DataTable, SortDirection};
@@ -49,6 +59,7 @@ pub use icon_button::IconButton;
 pub use kbd::Kbd;
 pub use kpi_strip::{Kpi, KpiStrip};
 pub use layout::{MetaList, Page};
+pub use log_view::{LogBuffer, LogView, log_summary, log_tone, match_ranges, visible_lines};
 pub use markdown_view::MarkdownView;
 pub use menu::{ContextMenu, Menu, MenuEntry};
 pub use meter::Meter;
