@@ -310,7 +310,7 @@ impl Render for Gallery {
             .size_full()
             .child(TopBar::new("Hades UI · gallery"))
             .child(div().flex().flex_1().min_h_0().child(rail).child(main))
-            .child(StatusBar::new("gallery", "hades-ui 0.1.2"))
+            .child(StatusBar::new("gallery", "hades-ui 0.2.0"))
             .children(dialogo)
     }
 }
