@@ -1,9 +1,9 @@
 use gpui::{App, IntoElement, ParentElement, RenderOnce, SharedString, Styled, Window, div, px};
 
 use crate::theme::palette;
-use crate::tokens::{FONT_MONO, TOP_BAR_HEIGHT, size};
+use crate::tokens::{FONT_MONO, Palette, TOP_BAR_HEIGHT, size};
 
-/// Barra de topo escura da janela: título centralizado e rótulo do app à direita.
+/// Barra de topo da janela (`header` do painel): h 48, fundo da página a 90%, linha de base de 2 px `--primary`.
 #[derive(IntoElement)]
 pub struct TopBar {
     title: SharedString,
@@ -31,13 +31,12 @@ impl RenderOnce for TopBar {
             .flex()
             .items_center()
             .gap(px(12.0))
-            .px(px(12.0))
+            .px(px(16.0))
             .h(px(TOP_BAR_HEIGHT))
             .flex_none()
-            .bg(p.rail)
-            .text_color(p.rail_mute)
-            .border_b_1()
-            .border_color(p.rail_line)
+            .bg(p.bg.opacity(0.9))
+            .text_color(p.muted_fg)
+            .shadow(vec![Palette::baseline(p.primary, 2.0)])
             .font_family(FONT_MONO)
             .text_size(px(size::META))
             .child(div().flex_1().flex().justify_center().child(self.title))

@@ -1,9 +1,14 @@
-use gpui::{App, IntoElement, ParentElement, RenderOnce, SharedString, Styled, Window, div, px};
+use gpui::{
+    App, ElementId, FontWeight, IntoElement, ParentElement, RenderOnce, SharedString, Styled,
+    Window, div, px,
+};
 
+use super::Spinner;
 use crate::theme::palette;
-use crate::tokens::{FONT_MONO, Tone, size};
+use crate::tokens::{Tone, size};
 
-/// Selo de estado: texto mono com fio da própria cor. A cor é função (estado), nunca enfeite.
+/// Selo de estado (`BADGE_V`): cheio na cor do estado, texto na cor do fundo, 12 px peso 600.
+/// `Busy` leva o giro. A cor é função (estado), nunca enfeite.
 #[derive(IntoElement)]
 pub struct StatusBadge {
     label: SharedString,
@@ -21,16 +26,24 @@ impl StatusBadge {
 
 impl RenderOnce for StatusBadge {
     fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
-        let color = palette(cx).tone(self.tone);
-        div()
+        let p = palette(cx);
+        let color = p.tone(self.tone);
+        let mut badge = div()
+            .flex()
             .flex_none()
-            .px(px(6.0))
-            .py(px(4.0))
-            .border_1()
-            .border_color(color)
-            .text_color(color)
-            .font_family(FONT_MONO)
-            .text_size(px(size::MICRO))
-            .child(self.label)
+            .items_center()
+            .gap(px(4.0))
+            .px(px(8.0))
+            .py(px(2.0))
+            .bg(color)
+            .text_color(p.bg)
+            .text_size(px(size::META))
+            .line_height(px(16.0))
+            .font_weight(FontWeight::SEMIBOLD);
+        if self.tone == Tone::Busy {
+            let id = ElementId::Name(format!("selo-{}", self.label).into());
+            badge = badge.child(Spinner::new(id).size(12.0).color(p.bg));
+        }
+        badge.child(self.label)
     }
 }

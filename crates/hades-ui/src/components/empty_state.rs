@@ -1,7 +1,8 @@
 use gpui::{App, IntoElement, ParentElement, RenderOnce, SharedString, Styled, Window, div, px};
 
+use crate::components::card::corners;
 use crate::theme::palette;
-use crate::tokens::size;
+use crate::tokens::{FONT_HEADING, size};
 
 /// Estado vazio: o que falta e, opcionalmente, o próximo passo. Texto curto, sem ilustração.
 #[derive(IntoElement)]
@@ -34,13 +35,14 @@ impl RenderOnce for EmptyState {
             .justify_center()
             .gap(px(4.0))
             .p(px(24.0))
-            .border_1()
-            .border_color(p.border)
+            .relative()
+            .bg(p.card.opacity(0.96))
+            .children(corners(p.line))
             .text_color(p.fg)
             .child(
                 div()
-                    .text_size(px(size::BODY))
-                    .font_weight(gpui::FontWeight::SEMIBOLD)
+                    .font_family(FONT_HEADING)
+                    .text_size(px(size::SECTION))
                     .child(self.title),
             );
         if let Some(hint) = self.hint {

@@ -8,7 +8,8 @@ Tema e componentes gpui compartilhados pelos apps do Hades.
 
 ## Estado
 
-F0, em construção. Tema e componentes base prontos; nada específico de ferramenta entra aqui.
+Tema e componentes com a identidade visual do painel web do Hades (inventário e divergências em
+[`docs/identidade.md`](docs/identidade.md), capturas em `docs/identidade/`). Nada específico de ferramenta entra aqui.
 
 ## Uso
 
@@ -32,18 +33,18 @@ Só o que é genérico de UI e aparece em páginas de design diferentes.
 
 | Componente | Papel |
 |---|---|
-| `TopBar` | barra de topo escura, título centralizado |
-| `Rail`, `RailGroup`, `RailItem` | navegação lateral agrupada, com item ativo e contador; `on_select` (clique e Enter/Espaço, foco visível) com o estado no chamador |
-| `PageHeader` | título da página e ações à direita |
-| `Card` | cartão com fio e título em caixa alta |
-| `StatusBadge` | selo de estado (`Tone`: neutro, vivo, ok, warn, bad, info) |
+| `TopBar` | barra de topo de 48 px, fundo da página e linha de base primary |
+| `Rail`, `RailGroup`, `RailItem` | sidebar de 248 px: rio, luz por distância, item atual com gradiente metal e óbolo, contador e `alive`; `on_select` (clique e Enter/Espaço, foco visível) com o estado no chamador |
+| `PageHeader` | título Marcellus 40 e ações à direita |
+| `Card` | cartão sem borda, com colchetes de canto, título Marcellus, `description` e variante `object` |
+| `StatusBadge` | selo cheio na cor do estado (`Tone`: neutro, vivo, ok, warn, bad, info, busy com giro) |
 | `DataTable` | tabela de texto com linha selecionável, ordenação e coluna numérica |
 | `KpiStrip`, `Kpi` | faixa de indicadores |
-| `Meter` | medidor de 6 px |
-| `TermBlock` | bloco de terminal |
+| `Meter` | barra de progresso de 4 px sobre trilho `--border` |
+| `TermBlock` | bloco de terminal; `dim`, `warn` e `bad` por linha |
 | `EmptyState` | estado vazio |
 | `StatusBar` | barra de estado no pé da janela |
-| `Button` | botão quadrado, primário ou secundário; `disabled(motivo)` mostra o motivo no tooltip |
+| `Button` | botão quadrado: `ButtonKind` (secondary, primary, ghost, destructive, ghost-destructive, link), `ButtonSize` (md, xs, lg, icon), `loading` com giro, `disabled(motivo)` com hachura e o motivo no tooltip |
 | `Segmented` | escolha de uma opção entre poucas; estado no chamador (`selected`, `on_select`) |
 | `FilterBar` | chips de filtro que ligam e desligam; estado no chamador |
 | `PathField` | caminho somente leitura com "Escolher" no diálogo de arquivo do sistema (`on_pick`) |
@@ -52,11 +53,31 @@ Só o que é genérico de UI e aparece em páginas de design diferentes.
 | `TextField` | campo de texto (`InputState` do gpui-component) com rótulo e erro inline; a validação é do chamador |
 | `CopyButton` | copia o texto para a área de transferência do gpui e mostra "Copiado" por 1,5 s; sem IO na thread da UI |
 | `Confirm` | diálogo de confirmação sobre a janela, com alvo em mono; renderize por último, só quando aberto |
+| `Switch` | chave liga/desliga de 44×22 com deslize de 200 ms; estado no chamador |
+| `Menu`, `MenuEntry`, `ContextMenu` | menu com itens, separador, item perigoso e desabilitado; `ContextMenu` abre no clique direito |
+| `Tip` | tooltip do painel: `.tooltip(Tip::text("..."))` |
+| `Toast` | aviso com barra de 5 px na cor do `Tone`, título, descrição e fechar; entra emergindo |
+| `Spinner`, `Skeleton`, `Dot` | giro, placeholder com shimmer e ponto de estado (com pulso) |
+| `Kbd` | tecla de atalho |
+| `Fio`, `FioState` | fio parado, medido, fiando (animado) ou cortado |
 
 `DataTable` aceita ainda `Align::Numeric` (direita, mono), `sorted` + `on_sort` (seta e clique no cabeçalho) e
 `on_select` (clique na linha). A ordenação e a seleção são do chamador.
 
-Tokens em `hades_ui::tokens`: `Palette` (claro e escuro), `Tone`, escalas `size` e `space`, fontes e medidas fixas.
+Tokens em `hades_ui::tokens`: `Palette` (claro e escuro), `Tone`, escalas `size`, `space` e `control`, fontes,
+medidas fixas e `motion` (durações e curvas do painel).
+
+## Migração de 0.1 para 0.2
+
+- `Palette` ganhou campos (`line`, `popover`, `hover`, `accent`, `primary_hover`, `secondary_hover`, `danger_soft`,
+  `danger_soft_hover`, `control_off`, `busy`, `metal`, `metal_ink`, `rail_accent`, `term_bad`, `term_warn`). Quem monta
+  `Palette` por literal precisa preencher os novos; quem só lê `palette(cx)` não muda nada.
+- `Tone` ganhou `Busy`. Um `match` exaustivo sobre `Tone` precisa do braço novo.
+- `Button`: `.primary()` continua; as variantes novas entram por `.kind(ButtonKind::...)` e `.size(ButtonSize::...)`.
+- Mudou o desenho, não a API: `StatusBadge` é cheio; `Card`, `TextField`, `PathField`, `EmptyState` e `KpiStrip` perderam
+  a borda (colchetes de canto ou linha de base no lugar); `Rail` tem 248 px; `Meter` tem 4 px; `PageHeader` usa
+  Marcellus 40; `TopBar` deixou de ser escura. Reveja as telas que dependiam dessas medidas.
+- Componentes novos: `Switch`, `Menu`, `ContextMenu`, `Tip`, `Toast`, `Spinner`, `Skeleton`, `Dot`, `Kbd`, `Fio`.
 
 ## Fontes e licença
 

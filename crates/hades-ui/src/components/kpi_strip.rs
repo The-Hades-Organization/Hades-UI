@@ -43,7 +43,7 @@ impl RenderOnce for KpiStrip {
     fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
         let p = palette(cx);
         let last = self.items.len().saturating_sub(1);
-        let mut strip = div().flex().border_1().border_color(p.border);
+        let mut strip = div().flex().bg(p.card.opacity(0.96));
         for (i, kpi) in self.items.into_iter().enumerate() {
             let value_color = if kpi.tone == Tone::Neutral {
                 p.fg

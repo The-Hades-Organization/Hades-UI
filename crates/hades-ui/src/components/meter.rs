@@ -3,7 +3,7 @@ use gpui::{App, IntoElement, ParentElement, RenderOnce, Styled, Window, div, px,
 use crate::theme::palette;
 use crate::tokens::Tone;
 
-/// Medidor de 6 px; `Neutral` pinta com a cor de texto.
+/// Barra de progresso do painel (`Progress`): 4 px, trilho `--border`; `Neutral` pinta com a cor de texto.
 #[derive(IntoElement)]
 pub struct Meter {
     fraction: f32,
@@ -34,9 +34,9 @@ impl RenderOnce for Meter {
             p.tone(self.tone)
         };
         div()
-            .h(px(6.0))
+            .h(px(4.0))
             .w_full()
-            .bg(p.muted)
+            .bg(p.border)
             .child(div().h_full().w(relative(self.fraction)).bg(fill))
     }
 }

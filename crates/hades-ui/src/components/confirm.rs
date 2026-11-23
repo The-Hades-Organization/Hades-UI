@@ -6,8 +6,9 @@ use gpui::{
 };
 
 use crate::components::Button;
+use crate::components::card::corners;
 use crate::theme::palette;
-use crate::tokens::{FONT_MONO, size};
+use crate::tokens::{FONT_HEADING, FONT_MONO, size};
 
 type Handler = Rc<dyn Fn(&ClickEvent, &mut Window, &mut App)>;
 
@@ -85,12 +86,18 @@ impl RenderOnce for Confirm {
             .flex_col()
             .gap(px(10.0))
             .w(px(420.0))
-            .p(px(16.0))
+            .p(px(20.0))
+            .relative()
             .bg(p.card)
-            .border_1()
-            .border_color(p.border_strong)
+            .shadow(vec![p.dialog_shadow()])
             .text_color(p.fg)
-            .child(div().text_size(px(size::SECTION)).child(self.title));
+            .children(corners(p.primary))
+            .child(
+                div()
+                    .font_family(FONT_HEADING)
+                    .text_size(px(size::SECTION))
+                    .child(self.title),
+            );
         if let Some(detail) = self.detail {
             body = body.child(
                 div()
@@ -104,7 +111,7 @@ impl RenderOnce for Confirm {
                 div()
                     .px(px(10.0))
                     .py(px(7.0))
-                    .bg(p.muted)
+                    .bg(p.popover)
                     .font_family(FONT_MONO)
                     .text_size(px(size::META))
                     .child(target),
@@ -127,7 +134,7 @@ impl RenderOnce for Confirm {
             .flex()
             .items_center()
             .justify_center()
-            .bg(p.fg.opacity(0.45))
+            .bg(gpui::black().opacity(0.5))
             .occlude()
             .child(body)
     }

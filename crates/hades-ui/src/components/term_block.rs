@@ -3,10 +3,19 @@ use gpui::{App, IntoElement, ParentElement, RenderOnce, SharedString, Styled, Wi
 use crate::theme::palette;
 use crate::tokens::{FONT_MONO, size};
 
-/// Bloco de terminal: fundo `--term` nos dois modos, uma linha por entrada; `dim` marca saída secundária.
+#[derive(Clone, Copy)]
+enum LineKind {
+    Plain,
+    Dim,
+    Warn,
+    Bad,
+}
+
+/// Bloco de terminal: fundo `--term` nos dois modos, uma linha por entrada; `dim` marca saída secundária,
+/// `warn` e `bad` usam `--term-warn` e `--term-bad`.
 #[derive(IntoElement)]
 pub struct TermBlock {
-    lines: Vec<(SharedString, bool)>,
+    lines: Vec<(SharedString, LineKind)>,
 }
 
 impl TermBlock {
@@ -15,12 +24,22 @@ impl TermBlock {
     }
 
     pub fn line(mut self, text: impl Into<SharedString>) -> Self {
-        self.lines.push((text.into(), false));
+        self.lines.push((text.into(), LineKind::Plain));
         self
     }
 
     pub fn dim(mut self, text: impl Into<SharedString>) -> Self {
-        self.lines.push((text.into(), true));
+        self.lines.push((text.into(), LineKind::Dim));
+        self
+    }
+
+    pub fn warn(mut self, text: impl Into<SharedString>) -> Self {
+        self.lines.push((text.into(), LineKind::Warn));
+        self
+    }
+
+    pub fn bad(mut self, text: impl Into<SharedString>) -> Self {
+        self.lines.push((text.into(), LineKind::Bad));
         self
     }
 }
@@ -44,12 +63,14 @@ impl RenderOnce for TermBlock {
             .text_color(p.term_fg)
             .font_family(FONT_MONO)
             .text_size(px(size::META));
-        for (text, dim) in self.lines {
-            let mut row = div().child(text);
-            if dim {
-                row = row.text_color(p.term_mute);
-            }
-            block = block.child(row);
+        for (text, kind) in self.lines {
+            let color = match kind {
+                LineKind::Plain => p.term_fg,
+                LineKind::Dim => p.term_mute,
+                LineKind::Warn => p.term_warn,
+                LineKind::Bad => p.term_bad,
+            };
+            block = block.child(div().text_color(color).child(text));
         }
         block
     }

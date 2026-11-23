@@ -1,8 +1,8 @@
 use std::rc::Rc;
 
 use gpui::{
-    App, ElementId, InteractiveElement, IntoElement, ParentElement, RenderOnce, SharedString,
-    StatefulInteractiveElement, Styled, Window, div, px,
+    App, ElementId, FontWeight, InteractiveElement, IntoElement, ParentElement, RenderOnce,
+    SharedString, StatefulInteractiveElement, Styled, Window, div, px,
 };
 
 use crate::theme::palette;
@@ -25,7 +25,8 @@ pub enum SortDirection {
 
 type IndexHandler = Rc<dyn Fn(usize, &mut Window, &mut App)>;
 
-/// Tabela simples de células de texto: cabeçalho mono em caixa alta, fios entre linhas, linha selecionável.
+/// Tabela simples de células de texto (`Th`/`Td`/`Tr` do painel): cabeçalho de 40 px em caixa alta 11 px peso 600,
+/// zebra `secondary` 55%, hover `hover`, fios entre linhas e linha selecionável.
 /// Para células com selo ou ação, monte as linhas com `div` e use as mesmas cores da paleta.
 #[derive(IntoElement)]
 pub struct DataTable {
@@ -92,10 +93,12 @@ impl RenderOnce for DataTable {
         };
         let mut head = div()
             .flex()
+            .items_center()
+            .h(px(40.0))
             .border_b_1()
-            .border_color(p.border_strong)
+            .border_color(p.border)
             .text_color(p.muted_fg)
-            .font_family(FONT_MONO)
+            .font_weight(FontWeight::SEMIBOLD)
             .text_size(px(size::MICRO));
         for (i, (title, align)) in self.columns.into_iter().enumerate() {
             let mark = match self.sort {
@@ -122,8 +125,11 @@ impl RenderOnce for DataTable {
             .child(head);
         for (i, row) in self.rows.into_iter().enumerate() {
             let mut line = div().flex().border_b_1().border_color(p.border);
+            if i % 2 == 1 {
+                line = line.bg(p.muted.opacity(0.55));
+            }
             if self.selected == Some(i) {
-                line = line.bg(p.muted);
+                line = line.bg(p.accent);
             }
             for (text, align) in row.into_iter().zip(aligns.iter()) {
                 line = line.child(cell(text, *align));
@@ -132,7 +138,7 @@ impl RenderOnce for DataTable {
                 table = table.child(
                     line.id(ElementId::NamedInteger("row".into(), i as u64))
                         .cursor_pointer()
-                        .hover(|s| s.bg(p.muted.opacity(0.6)))
+                        .hover(move |s| s.bg(p.hover))
                         .on_click(move |_, window, cx| on_select(i, window, cx)),
                 );
             } else {

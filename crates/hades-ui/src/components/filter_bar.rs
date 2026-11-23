@@ -7,6 +7,7 @@ use gpui::{
 
 use crate::theme::palette;
 use crate::tokens::{FONT_MONO, size};
+use crate::tokens::{Palette, control};
 
 type ToggleHandler = Rc<dyn Fn(usize, &mut Window, &mut App)>;
 
@@ -69,20 +70,24 @@ impl RenderOnce for FilterBar {
             );
         }
         for (i, (label, active)) in self.chips.into_iter().enumerate() {
-            let (border, fg) = if active {
-                (p.vivo, p.vivo)
-            } else {
-                (p.border_strong, p.fg)
-            };
             let mut chip = div()
                 .id(ElementId::NamedInteger("chip".into(), i as u64))
-                .px(px(8.0))
-                .py(px(6.0))
-                .border_1()
-                .border_color(border)
-                .bg(p.card)
-                .text_color(fg)
+                .flex()
+                .items_center()
+                .h(px(control::XS))
+                .px(px(10.0))
+                .font_weight(gpui::FontWeight::SEMIBOLD)
                 .child(label);
+            chip = if active {
+                chip.bg(p.popover)
+                    .text_color(p.fg)
+                    .shadow(vec![Palette::baseline(p.primary, 2.0)])
+            } else {
+                let hover = p.hover;
+                let fg = p.fg;
+                chip.text_color(p.muted_fg)
+                    .hover(move |s| s.bg(hover).text_color(fg))
+            };
             if let Some(f) = self.on_toggle.clone() {
                 chip = chip
                     .cursor_pointer()

@@ -5,12 +5,13 @@ use gpui::{
     SharedString, StatefulInteractiveElement, Styled, Window, div, px,
 };
 
+use super::button::focus_ring;
 use crate::theme::palette;
-use crate::tokens::size;
+use crate::tokens::{Palette, control, size};
 
 type SelectHandler = Rc<dyn Fn(usize, &mut Window, &mut App)>;
 
-/// Seletor de uma opção entre poucas (`.seg`). O estado é do chamador: `selected` e `on_select`.
+/// Seletor de uma opção entre poucas (`Segmented` do painel): selecionado em `secondary` com linha de base `primary`. O estado é do chamador: `selected` e `on_select`.
 #[derive(IntoElement)]
 pub struct Segmented {
     id: ElementId,
@@ -50,23 +51,32 @@ impl RenderOnce for Segmented {
             .id(self.id.clone())
             .flex()
             .flex_none()
-            .border_1()
-            .border_color(p.border_strong)
-            .text_size(px(size::META));
+            .h(px(control::MD))
+            .text_size(px(size::LABEL))
+            .font_weight(FontWeight::SEMIBOLD);
         for (i, label) in self.options.into_iter().enumerate() {
             let on = i == self.selected;
             let mut seg = div()
                 .id(ElementId::NamedInteger("seg".into(), i as u64))
-                .px(px(10.0))
-                .py(px(6.0))
-                .text_color(p.fg)
+                .flex()
+                .items_center()
+                .h_full()
+                .px(px(12.0))
+                .text_color(p.muted_fg)
                 .child(label);
             if on {
-                seg = seg.bg(p.muted).font_weight(FontWeight::SEMIBOLD);
+                seg = seg
+                    .bg(p.muted)
+                    .text_color(p.fg)
+                    .shadow(vec![Palette::baseline(p.primary, 2.0)]);
             }
             if let Some(f) = self.on_select.clone() {
+                let ring = focus_ring(&p, p.bg);
                 seg = seg
                     .cursor_pointer()
+                    .tab_stop(true)
+                    .hover(move |s| s.bg(p.hover).text_color(p.fg))
+                    .focus_visible(move |s| s.shadow(ring.clone()))
                     .on_click(move |_, window, cx| f(i, window, cx));
             }
             row = row.child(seg);

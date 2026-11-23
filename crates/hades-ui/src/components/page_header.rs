@@ -3,9 +3,9 @@ use gpui::{
 };
 
 use crate::theme::palette;
-use crate::tokens::size;
+use crate::tokens::{FONT_HEADING, size};
 
-/// Cabeçalho de página: título à esquerda e as ações (botões, segmentado) à direita.
+/// Cabeçalho de página: título Marcellus 40 à esquerda e as ações (botões, segmentado) à direita.
 #[derive(IntoElement)]
 pub struct PageHeader {
     title: SharedString,
@@ -32,13 +32,13 @@ impl RenderOnce for PageHeader {
         div()
             .flex()
             .items_center()
-            .gap(px(10.0))
+            .gap(px(12.0))
             .text_color(p.fg)
             .child(
                 div()
                     .flex_1()
-                    .text_size(px(size::PROSE))
-                    .font_weight(gpui::FontWeight::SEMIBOLD)
+                    .font_family(FONT_HEADING)
+                    .text_size(px(size::PAGE_TITLE))
                     .child(self.title),
             )
             .children(self.actions)

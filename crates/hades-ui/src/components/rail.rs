@@ -1,12 +1,13 @@
 use std::rc::Rc;
 
 use gpui::{
-    App, ElementId, InteractiveElement, IntoElement, ParentElement, RenderOnce, SharedString,
-    StatefulInteractiveElement, Styled, Window, div, px,
+    App, BoxShadow, ElementId, FontWeight, InteractiveElement, IntoElement, ParentElement,
+    RenderOnce, SharedString, StatefulInteractiveElement, Styled, Window, div, linear_color_stop,
+    linear_gradient, point, px,
 };
 
 use crate::theme::palette;
-use crate::tokens::{FONT_MONO, RAIL_WIDTH, size};
+use crate::tokens::{FONT_MONO, RAIL_WIDTH, control, size};
 
 type SelectHandler = Rc<dyn Fn(&SharedString, &mut Window, &mut App)>;
 
@@ -14,6 +15,7 @@ type SelectHandler = Rc<dyn Fn(&SharedString, &mut Window, &mut App)>;
 pub struct RailItem {
     label: SharedString,
     badge: Option<SharedString>,
+    alive: bool,
 }
 
 impl RailItem {
@@ -21,7 +23,14 @@ impl RailItem {
         Self {
             label: label.into(),
             badge: None,
+            alive: false,
         }
+    }
+
+    /// Página com atividade: o ponto de luz acende inteiro, longe ou perto da atual.
+    pub fn alive(mut self, alive: bool) -> Self {
+        self.alive = alive;
+        self
     }
 
     pub fn badge(mut self, badge: impl Into<SharedString>) -> Self {
@@ -45,7 +54,8 @@ impl RailGroup {
     }
 }
 
-/// Trilho lateral escuro nos dois modos; `selected` é o rótulo do item ativo.
+/// Sidebar do painel, escura nos dois modos: rio de 1 px ligando pontos de luz que perdem força com a distância
+/// da página aberta; a atual leva gradiente metal, filete de 3 px e o óbolo com halo. `selected` é o rótulo ativo.
 /// Com `on_select`, cada item responde a clique e a Enter/Espaço; o estado é do chamador.
 #[derive(IntoElement)]
 pub struct Rail {
@@ -83,59 +93,112 @@ impl Rail {
     }
 }
 
+/// Opacidade do ponto de luz a `d` itens da página aberta (`.luz`: `max(.16, 1 − d·.17)`).
+pub(crate) fn light_opacity(d: usize) -> f32 {
+    (1.0 - d as f32 * 0.17).max(0.16)
+}
+
 impl RenderOnce for Rail {
     fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
         let p = palette(cx);
-        let mut rail = div()
-            .id(self.id.clone())
-            .flex()
-            .flex_col()
-            .gap(px(2.0))
-            .py(px(12.0))
-            .w(px(RAIL_WIDTH))
-            .h_full()
-            .flex_none()
-            .overflow_hidden()
-            .bg(p.rail)
-            .text_color(p.rail_fg)
-            .text_size(px(size::LABEL));
-        let mut index = 0u64;
+        let labels: Vec<SharedString> = self
+            .groups
+            .iter()
+            .flat_map(|g| g.items.iter().map(|i| i.label.clone()))
+            .collect();
+        let current = self
+            .selected
+            .as_ref()
+            .and_then(|s| labels.iter().position(|l| l == s));
+        let mut nav = div().relative().flex().flex_col().child(
+            div()
+                .absolute()
+                .top_0()
+                .bottom_0()
+                .left(px(27.0))
+                .w(px(1.0))
+                .bg(p.rail_mute.opacity(0.26)),
+        );
+        let mut index = 0usize;
         for group in self.groups {
-            rail = rail.child(
+            nav = nav.child(
                 div()
-                    .px(px(14.0))
-                    .pt(px(12.0))
+                    .pl(px(40.0))
+                    .pt(px(16.0))
                     .pb(px(6.0))
                     .text_color(p.rail_mute)
-                    .font_family(FONT_MONO)
+                    .font_weight(FontWeight::SEMIBOLD)
                     .text_size(px(size::MICRO))
                     .child(group.title.to_uppercase()),
             );
             for item in group.items {
-                let on = self.selected.as_ref() == Some(&item.label);
+                let on = current == Some(index);
                 let mut row = div()
-                    .id(ElementId::NamedInteger("rail-item".into(), index))
+                    .id(ElementId::NamedInteger("rail-item".into(), index as u64))
+                    .relative()
                     .flex()
+                    .items_center()
                     .justify_between()
-                    .px(px(14.0))
-                    .py(px(7.0))
-                    .border_l_2()
-                    .border_color(gpui::transparent_black());
-                if on {
+                    .h(px(control::MD))
+                    .pl(px(40.0))
+                    .pr(px(14.0));
+                let light = if on {
                     row = row
-                        .bg(p.rail_sel.opacity(0.14))
-                        .border_color(p.rail_sel)
-                        .text_color(p.rail_sel);
-                }
-                index += 1;
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .bg(linear_gradient(
+                            90.0,
+                            linear_color_stop(p.metal.opacity(0.24), 0.0),
+                            linear_color_stop(p.metal.opacity(0.0), 0.9),
+                        ))
+                        .shadow(vec![BoxShadow {
+                            color: p.metal,
+                            offset: point(px(3.0), px(0.0)),
+                            blur_radius: px(0.0),
+                            spread_radius: px(0.0),
+                            inset: true,
+                        }]);
+                    div()
+                        .absolute()
+                        .left(px(23.0))
+                        .top(px((control::MD - 9.0) / 2.0))
+                        .size(px(9.0))
+                        .bg(p.metal)
+                        .shadow(vec![
+                            BoxShadow::new(px(0.0), px(0.0), p.metal.opacity(0.46))
+                                .blur_radius(px(12.0))
+                                .spread_radius(px(2.0)),
+                        ])
+                } else {
+                    let d = current.map_or(usize::MAX, |c| c.abs_diff(index));
+                    let opacity = if item.alive { 1.0 } else { light_opacity(d) };
+                    div()
+                        .absolute()
+                        .left(px(24.0))
+                        .top(px((control::MD - 7.0) / 2.0))
+                        .size(px(7.0))
+                        .bg(p.metal)
+                        .opacity(opacity)
+                };
+                row = row.child(light);
                 if let Some(f) = self.on_select.clone() {
                     let label = item.label.clone();
+                    let ring = BoxShadow {
+                        color: p.metal,
+                        offset: point(px(0.0), px(0.0)),
+                        blur_radius: px(0.0),
+                        spread_radius: px(2.0),
+                        inset: true,
+                    };
                     row = row
                         .cursor_pointer()
                         .tab_stop(true)
-                        .focus_visible(|s| s.border_color(p.vivo))
+                        .focus_visible(move |s| s.shadow(vec![ring.clone()]))
                         .on_click(move |_, window, cx| f(&label, window, cx));
+                    if !on {
+                        row = row.hover(move |s| s.bg(p.rail_accent));
+                    }
                 }
+                index += 1;
                 row = row.child(item.label);
                 if let Some(badge) = item.badge {
                     row = row.child(
@@ -146,9 +209,35 @@ impl RenderOnce for Rail {
                             .child(badge),
                     );
                 }
-                rail = rail.child(row);
+                nav = nav.child(row);
             }
         }
-        rail
+        div()
+            .id(self.id.clone())
+            .flex()
+            .flex_col()
+            .py(px(8.0))
+            .w(px(RAIL_WIDTH))
+            .h_full()
+            .flex_none()
+            .overflow_hidden()
+            .bg(p.rail)
+            .text_color(p.rail_fg)
+            .text_size(px(size::LABEL))
+            .border_r_1()
+            .border_color(p.rail_line)
+            .child(nav)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::light_opacity;
+
+    #[test]
+    fn luz_perde_forca_com_a_distancia_e_para_no_piso() {
+        assert!((light_opacity(0) - 1.0).abs() < 1e-6);
+        assert!((light_opacity(2) - 0.66).abs() < 1e-6);
+        assert!((light_opacity(9) - 0.16).abs() < 1e-6);
     }
 }

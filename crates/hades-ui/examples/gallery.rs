@@ -1,20 +1,21 @@
 //! Mostra tema e componentes base. O botão do cabeçalho alterna claro e escuro; `--dark` abre no escuro.
 use gpui::prelude::FluentBuilder as _;
 use gpui::{
-    App, AppContext, Context, IntoElement, ParentElement, Render, SharedString, Styled, Window,
-    WindowOptions, div, px,
+    App, AppContext, Context, InteractiveElement, IntoElement, ParentElement, Render, SharedString,
+    StatefulInteractiveElement, Styled, Window, WindowOptions, div, px,
 };
 use gpui_component::{
-    ActiveTheme as _, Sizable as _,
-    button::Button,
+    ActiveTheme as _,
     input::{InputEvent, InputState},
 };
 use hades_ui::ThemeMode;
 use hades_ui::Tone;
 use hades_ui::components::{
-    Align, Button as Btn, Card, Confirm, CopyButton, DataTable, EmptyState, FilterBar, Kpi,
-    KpiStrip, MarkdownView, Meter, PageHeader, PathField, Rail, RailGroup, RailItem, Segmented,
-    SortDirection, StatusBadge, StatusBar, TermBlock, TextField, Timeline, TopBar,
+    Align, Button as Btn, ButtonKind, ButtonSize, Card, Confirm, ContextMenu, CopyButton,
+    DataTable, Dot, EmptyState, FilterBar, Fio, FioState, Kbd, Kpi, KpiStrip, MarkdownView, Menu,
+    MenuEntry, Meter, PageHeader, PathField, Rail, RailGroup, RailItem, Segmented, Skeleton,
+    SortDirection, Spinner, StatusBadge, StatusBar, Switch, TermBlock, TextField, Timeline, Tip,
+    Toast, TopBar,
 };
 
 #[derive(Default)]
@@ -28,6 +29,8 @@ struct Gallery {
     linha: usize,
     pagina: Option<SharedString>,
     confirmando: bool,
+    chaves: [bool; 2],
+    ultimo_menu: Option<SharedString>,
 }
 
 impl Render for Gallery {
@@ -51,10 +54,8 @@ impl Render for Gallery {
             }
         };
         let dark = cx.theme().mode.is_dark();
-        let toggle = Button::new("modo")
-            .small()
-            .outline()
-            .label(if dark { "Claro" } else { "Escuro" })
+        let toggle = Btn::new("modo", if dark { "Claro" } else { "Escuro" })
+            .kind(ButtonKind::Secondary)
             .on_click(|_, _, cx| {
                 let next = if cx.theme().mode.is_dark() {
                     ThemeMode::Light
@@ -64,6 +65,7 @@ impl Render for Gallery {
                 hades_ui::set_mode(cx, next);
             });
         let this = cx.entity();
+        let estados = estados(self, &this);
         let controles = Card::new()
             .title("Controles")
             .child(
@@ -185,7 +187,7 @@ impl Render for Gallery {
                 "Hades",
                 [
                     RailItem::new("Visão geral"),
-                    RailItem::new("Orquestração").badge("3"),
+                    RailItem::new("Orquestração").badge("3").alive(true),
                     RailItem::new("Fila de gates").badge("1"),
                 ],
             ),
@@ -197,6 +199,8 @@ impl Render for Gallery {
             cx.notify();
         }));
         let main = div()
+            .id("main")
+            .overflow_y_scroll()
             .flex_1()
             .min_w_0()
             .flex()
@@ -256,8 +260,11 @@ impl Render for Gallery {
             .child(
                 TermBlock::new()
                     .line("$ hades gate-lock status")
-                    .dim("1 em execução · 0 na fila"),
+                    .dim("1 em execução · 0 na fila")
+                    .warn("aviso: worktree sem hooks")
+                    .bad("erro: gate barrado"),
             )
+            .child(estados)
             .child(controles)
             .child(
                 Card::new()
@@ -308,6 +315,177 @@ impl Render for Gallery {
     }
 }
 
+fn linha(rotulo: &'static str) -> gpui::Div {
+    div()
+        .flex()
+        .flex_wrap()
+        .items_center()
+        .gap(px(10.0))
+        .child(div().w(px(110.0)).text_size(px(12.0)).child(rotulo))
+}
+
+fn estados(g: &Gallery, this: &gpui::Entity<Gallery>) -> impl IntoElement {
+    let kinds = [
+        ("Primary", ButtonKind::Primary),
+        ("Secondary", ButtonKind::Secondary),
+        ("Ghost", ButtonKind::Ghost),
+        ("Destructive", ButtonKind::Destructive),
+        ("Ghost destr.", ButtonKind::GhostDestructive),
+        ("Link", ButtonKind::Link),
+    ];
+    let mut botoes = div().flex().flex_col().gap(px(8.0));
+    for (i, (nome, kind)) in kinds.into_iter().enumerate() {
+        let id = |s: &str| SharedString::from(format!("{s}-{i}"));
+        botoes = botoes.child(
+            linha(nome)
+                .child(Btn::new(id("n"), "Normal").kind(kind))
+                .child(
+                    Btn::new(id("d"), "Desabilitado")
+                        .kind(kind)
+                        .disabled("Sem permissão"),
+                )
+                .child(Btn::new(id("l"), "Carregando").kind(kind).loading(true)),
+        );
+    }
+    botoes = botoes.child(
+        linha("Tamanhos")
+            .child(Btn::new("xs", "Xs").size(ButtonSize::Xs))
+            .child(Btn::new("md", "Md").size(ButtonSize::Md))
+            .child(Btn::new("lg", "Lg").size(ButtonSize::Lg))
+            .child(Btn::new("ic", "+").size(ButtonSize::Icon)),
+    );
+    let chave = |i: usize| {
+        let this = this.clone();
+        move |v: bool, _: &mut Window, cx: &mut App| {
+            this.update(cx, |g, cx| {
+                g.chaves[i] = v;
+                cx.notify();
+            })
+        }
+    };
+    let escolheu = |rotulo: &'static str| {
+        let this = this.clone();
+        move |_: &gpui::ClickEvent, _: &mut Window, cx: &mut App| {
+            this.update(cx, |g, cx| {
+                g.ultimo_menu = Some(rotulo.into());
+                cx.notify();
+            })
+        }
+    };
+    let lista = {
+        let a = escolheu("Abrir");
+        let b = escolheu("Copiar caminho");
+        let c = escolheu("Dispensar");
+        move || {
+            vec![
+                MenuEntry::item("Abrir").on_click(a.clone()),
+                MenuEntry::item("Copiar caminho").on_click(b.clone()),
+                MenuEntry::item("Renomear").disabled(true),
+                MenuEntry::separator(),
+                MenuEntry::item("Dispensar").danger().on_click(c.clone()),
+            ]
+        }
+    };
+    let entradas = {
+        let lista = lista.clone();
+        move |_: &mut Window, _: &mut App| lista()
+    };
+    let tons = [
+        (Tone::Neutral, "neutro"),
+        (Tone::Vivo, "vivo"),
+        (Tone::Ok, "ok"),
+        (Tone::Warn, "warn"),
+        (Tone::Bad, "bad"),
+        (Tone::Info, "info"),
+        (Tone::Busy, "busy"),
+    ];
+    let mut pontos = linha("Pontos");
+    let mut selos = linha("Selos");
+    for (i, (t, nome)) in tons.into_iter().enumerate() {
+        pontos = pontos.child(Dot::new(("dot", i), t).pulse(t == Tone::Warn));
+        selos = selos.child(StatusBadge::new(nome, t));
+    }
+    let mut toasts = div().flex().flex_col().gap(px(8.0)).w(px(380.0));
+    for (i, (t, titulo)) in [
+        (Tone::Ok, "Gate verde"),
+        (Tone::Warn, "Recruta parado no teto"),
+        (Tone::Bad, "Push recusado"),
+        (Tone::Busy, "Compilando gpui"),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        toasts = toasts.child(
+            Toast::new(("toast", i), t, titulo).description("Detalhe em uma linha, cor muted."),
+        );
+    }
+    Card::new()
+        .title("Estados")
+        .description(
+            "Hover, foco (Tab) e pressionado são ao vivo; o resto está fixo em cada linha.",
+        )
+        .child(botoes)
+        .child(
+            linha("Switch")
+                .child(
+                    Switch::new("sw0", g.chaves[0])
+                        .label("Ligado")
+                        .on_change(chave(0)),
+                )
+                .child(
+                    Switch::new("sw1", g.chaves[1])
+                        .label("Desligado")
+                        .on_change(chave(1)),
+                )
+                .child(
+                    Switch::new("sw2", true)
+                        .label("Desabilitado")
+                        .disabled(true),
+                ),
+        )
+        .child(selos)
+        .child(pontos)
+        .child(
+            linha("Carregando")
+                .child(Spinner::new("sp"))
+                .child(Spinner::new("sp-lg").size(24.0))
+                .child(Skeleton::new("sk1").width(180.0).height(14.0))
+                .child(Skeleton::new("sk2").width(90.0).height(32.0)),
+        )
+        .child(
+            linha("Fio")
+                .child(div().w(px(120.0)).child(Fio::new("f0", FioState::Parado)))
+                .child(div().w(px(120.0)).child(Fio::new("f1", FioState::Medido)))
+                .child(div().w(px(120.0)).child(Fio::new("f2", FioState::Fiando)))
+                .child(div().w(px(120.0)).child(Fio::new("f3", FioState::Cortado))),
+        )
+        .child(
+            linha("Kbd e tooltip")
+                .child(Kbd::new("Ctrl K"))
+                .child(Kbd::new("Esc"))
+                .child(
+                    div()
+                        .id("tip")
+                        .px(px(8.0))
+                        .child("passe o mouse")
+                        .tooltip(Tip::text("Tooltip: popover, meta, sombra")),
+                ),
+        )
+        .child(
+            linha("Menu")
+                .child(Menu::new("menu-fixo", lista()))
+                .child(ContextMenu::new(
+                    "ctx",
+                    div().px(px(12.0)).py(px(20.0)).child(match &g.ultimo_menu {
+                        Some(m) => format!("Clique direito aqui · último: {m}"),
+                        None => "Clique direito aqui".to_string(),
+                    }),
+                    entradas,
+                )),
+        )
+        .child(linha("Toast").child(toasts))
+}
+
 fn main() {
     let dark = std::env::args().any(|a| a == "--dark");
     gpui_platform::application().run(move |cx: &mut App| {
@@ -321,7 +499,10 @@ fn main() {
         );
         let aberta = cx.open_window(WindowOptions::default(), |window, cx| {
             window.set_window_title("Hades UI");
-            cx.new(|_| Gallery::default())
+            cx.new(|_| Gallery {
+                chaves: [true, false],
+                ..Default::default()
+            })
         });
         if aberta.is_err() {
             cx.quit();

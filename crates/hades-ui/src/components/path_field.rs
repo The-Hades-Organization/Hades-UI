@@ -8,7 +8,7 @@ use gpui::{
 
 use crate::components::Button;
 use crate::theme::palette;
-use crate::tokens::{FONT_MONO, size};
+use crate::tokens::{FONT_MONO, Palette, size};
 
 type PickHandler = Rc<dyn Fn(PathBuf, &mut App)>;
 
@@ -90,9 +90,8 @@ impl RenderOnce for PathField {
                     .overflow_hidden()
                     .px(px(10.0))
                     .py(px(7.0))
-                    .border_1()
-                    .border_color(p.border_strong)
-                    .bg(p.card)
+                    .bg(p.popover)
+                    .shadow(vec![Palette::baseline(p.line, 2.0)])
                     .text_color(color)
                     .font_family(FONT_MONO)
                     .text_size(px(size::META))
