@@ -170,6 +170,11 @@ pub struct Palette {
     pub primary: Hsla,
     pub primary_fg: Hsla,
     pub primary_hover: Hsla,
+    /// Fundo do botão primário desabilitado (= `muted`): sobre ele a hachura aparece, o que não acontece
+    /// sobre o `primary` esmaecido.
+    pub primary_disabled: Hsla,
+    /// Texto do botão primário desabilitado (= `muted_fg`).
+    pub primary_disabled_fg: Hsla,
     pub secondary_hover: Hsla,
     pub danger_soft: Hsla,
     pub danger_soft_hover: Hsla,
@@ -292,6 +297,8 @@ impl Palette {
             primary: hex(base.primary),
             primary_fg: hex(0xf5e8dc),
             primary_hover: d.primary_hover,
+            primary_disabled: hex(base.popover),
+            primary_disabled_fg: hex(0x684b5b),
             secondary_hover: d.secondary_hover,
             danger_soft: d.danger_soft,
             danger_soft_hover: d.danger_soft_hover,
@@ -345,6 +352,8 @@ impl Palette {
             primary: hex(base.primary),
             primary_fg: hex(0x391a2c),
             primary_hover: d.primary_hover,
+            primary_disabled: hex(base.popover),
+            primary_disabled_fg: hex(0xbca7b4),
             secondary_hover: d.secondary_hover,
             danger_soft: d.danger_soft,
             danger_soft_hover: d.danger_soft_hover,
@@ -433,6 +442,15 @@ mod tests {
         assert!(close(l.primary, 0x391a2c) && close(d.primary, 0xffc6df));
         assert!(close(l.metal_ink, 0xad6689));
         assert!(l.rail.l < 0.2 && d.rail.l < 0.2);
+    }
+
+    #[test]
+    fn primario_desabilitado_usa_muted_nos_dois_modos() {
+        for p in [Palette::light(), Palette::dark()] {
+            assert_eq!(p.primary_disabled, p.muted);
+            assert_eq!(p.primary_disabled_fg, p.muted_fg);
+            assert_ne!(p.primary_disabled, p.primary);
+        }
     }
 
     #[test]

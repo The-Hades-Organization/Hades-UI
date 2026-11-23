@@ -41,7 +41,8 @@ pub enum ButtonSize {
 type ClickHandler = Rc<dyn Fn(&ClickEvent, &mut Window, &mut App)>;
 
 /// Botão quadrado do painel (`Button` de `app.tsx`).
-/// Desabilitado esmaece a 60% com hachura diagonal e mostra o motivo no tooltip; carregando mantém a cor e gira.
+/// Desabilitado ganha hachura diagonal e mostra o motivo no tooltip: o primário troca para `primary_disabled`,
+/// os outros esmaecem a 60%. Carregando mantém a cor e gira.
 #[derive(IntoElement)]
 pub struct Button {
     id: ElementId,
@@ -123,6 +124,19 @@ fn colors(kind: ButtonKind, p: &Palette) -> (Option<Hsla>, Hsla, Option<Hsla>, H
     }
 }
 
+/// Aparência do desabilitado: (fundo, texto, opacidade). No web é `opacity .6` com listras (`app.tsx:159`,
+/// `BTN_OFF`); sobre o `primary` a listra some e o botão parece ativo esmaecido, então o primário usa
+/// `primary_disabled`/`primary_disabled_fg` sem esmaecer.
+fn disabled_look(kind: ButtonKind, p: &Palette) -> (Option<Hsla>, Hsla, f32) {
+    match kind {
+        ButtonKind::Primary => (Some(p.primary_disabled), p.primary_disabled_fg, 1.0),
+        _ => {
+            let (bg, fg, _, _) = colors(kind, p);
+            (bg, fg, 0.6)
+        }
+    }
+}
+
 /// Contorno de foco do painel (`outline-2 outline-offset-3 outline-ring`): duas sombras sem desfoque,
 /// a de fora na cor do anel e a de dentro na do fundo, deixam o vão de 3 px.
 pub(crate) fn focus_ring(p: &Palette, gap_color: Hsla) -> Vec<BoxShadow> {
@@ -135,7 +149,11 @@ pub(crate) fn focus_ring(p: &Palette, gap_color: Hsla) -> Vec<BoxShadow> {
 impl RenderOnce for Button {
     fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
         let p = palette(cx);
-        let (bg, fg, hover_bg, hover_fg) = colors(self.kind, &p);
+        let (mut bg, mut fg, hover_bg, hover_fg) = colors(self.kind, &p);
+        let mut fade = 1.0;
+        if self.disabled_reason.is_some() && !self.loading {
+            (bg, fg, fade) = disabled_look(self.kind, &p);
+        }
         let (h, pad_x, text) = match self.size {
             ButtonSize::Md => (control::MD, 14.0, size::LABEL),
             ButtonSize::Xs => (control::XS, 8.0, size::META),
@@ -189,7 +207,7 @@ impl RenderOnce for Button {
         }
         if let Some(reason) = self.disabled_reason {
             return base
-                .opacity(0.6)
+                .opacity(fade)
                 .cursor_not_allowed()
                 .child(
                     div()
@@ -218,6 +236,34 @@ impl RenderOnce for Button {
                 .on_click(move |e, window, cx| f(e, window, cx))
                 .into_any_element(),
             None => base.into_any_element(),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn primario_desabilitado_troca_o_fundo_e_nao_esmaece() {
+        for p in [Palette::light(), Palette::dark()] {
+            let (bg, fg, fade) = disabled_look(ButtonKind::Primary, &p);
+            assert_eq!(bg, Some(p.primary_disabled));
+            assert_eq!(fg, p.primary_disabled_fg);
+            assert_eq!(fade, 1.0);
+        }
+    }
+
+    #[test]
+    fn outros_desabilitados_mantem_a_cor_e_esmaecem() {
+        let p = Palette::light();
+        for kind in [
+            ButtonKind::Secondary,
+            ButtonKind::Ghost,
+            ButtonKind::Destructive,
+        ] {
+            let (bg, fg, _, _) = colors(kind, &p);
+            assert_eq!(disabled_look(kind, &p), (bg, fg, 0.6));
         }
     }
 }

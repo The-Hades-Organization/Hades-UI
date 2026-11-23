@@ -7,7 +7,9 @@ use gpui::{
 };
 use gpui_component::input::InputState;
 
-use super::{Button, ButtonKind, ButtonSize, Card, Dot, PathField, StatusBadge, Switch, TextField};
+use super::{
+    Button, ButtonKind, ButtonSize, Card, Dot, PathField, Select, StatusBadge, Switch, TextField,
+};
 use crate::icons::IconName;
 use crate::theme::palette;
 use crate::tokens::{FONT_MONO, Palette, Tone, size};
@@ -68,6 +70,7 @@ enum Control {
         value: Option<SharedString>,
         directories: bool,
     },
+    Select(Select),
 }
 
 /// Linha de uma configuração, no molde da página Configurações do painel: rótulo, descrição e chave em mono à
@@ -152,6 +155,16 @@ impl SettingRow {
             directories: false,
         };
         Self::base(id, label, control)
+    }
+
+    /// Lista fechada (chave com valores enumerados no catálogo). O chamador monta o [`Select`] com as opções, o
+    /// valor e o `on_change`; a linha aplica o bloqueio de origem e o erro.
+    pub fn select(
+        id: impl Into<ElementId>,
+        label: impl Into<SharedString>,
+        select: Select,
+    ) -> Self {
+        Self::base(id, label, Control::Select(select))
     }
 
     /// Escolhe pasta em vez de arquivo (só para `path`).
@@ -293,7 +306,10 @@ impl RenderOnce for SettingRow {
         }
         info = info.child(meta);
 
-        let has_field = matches!(self.control, Control::Number { .. } | Control::Text(_));
+        let has_field = matches!(
+            self.control,
+            Control::Number { .. } | Control::Text(_) | Control::Select(_)
+        );
         let control: AnyElement = match self.control {
             Control::Switch(checked) => {
                 let mut sw = Switch::new((self.id.clone(), "sw"), checked).disabled(locked);
@@ -303,6 +319,10 @@ impl RenderOnce for SettingRow {
                 sw.into_any_element()
             }
             Control::Number { state, .. } | Control::Text(state) => TextField::new(&state)
+                .disabled(locked)
+                .error_opt(self.error.clone())
+                .into_any_element(),
+            Control::Select(select) => select
                 .disabled(locked)
                 .error_opt(self.error.clone())
                 .into_any_element(),

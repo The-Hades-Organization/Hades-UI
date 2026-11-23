@@ -12,9 +12,9 @@ use hades_ui::components::{
     Align, Button as Btn, ButtonKind, ButtonSize, Card, Confirm, ContextMenu, CopyButton,
     DataTable, Dot, EmptyState, FilterBar, Fio, FioState, IconButton, Kbd, Kpi, KpiStrip,
     MarkdownView, Menu, MenuEntry, MetaList, Meter, Page, PageHeader, PathField, Rail, RailBrand,
-    RailGroup, RailItem, RailStat, Segmented, SettingOrigin, SettingRow, SettingsBar,
-    SettingsGroup, Skeleton, SortDirection, Spinner, StatusBadge, StatusBar, Switch, TermBlock,
-    TextField, Timeline, Tip, Toast,
+    RailGroup, RailItem, RailStat, Segmented, Select, SelectOption, SettingOrigin, SettingRow,
+    SettingsBar, SettingsGroup, Sheet, Skeleton, SortDirection, Spinner, StatusBadge, StatusBar,
+    Switch, TermBlock, TextField, Timeline, Tip, Toast,
 };
 use hades_ui::icons::{Icon, IconName};
 
@@ -41,6 +41,8 @@ struct Gallery {
     cfg_caminho: Option<SharedString>,
     cfg_sujo: usize,
     cfg_salvo: bool,
+    cfg_modo: Option<SharedString>,
+    detalhe: bool,
 }
 
 impl Render for Gallery {
@@ -454,6 +456,34 @@ impl Render for Gallery {
                 .on_confirm(fechar.clone())
                 .on_cancel(fechar)
         });
+        let painel = self.detalhe.then(|| {
+            let fechar = {
+                let this = this.clone();
+                move |_: &mut Window, cx: &mut App| {
+                    this.update(cx, |g, cx| {
+                        g.detalhe = false;
+                        cx.notify();
+                    })
+                }
+            };
+            Sheet::new("detalhe", "Job do acme/demo")
+                .meta("DEMO-12 · verificação · 2 min 14 s")
+                .on_close(fechar)
+                .child(
+                    MetaList::new()
+                        .row("Estado", "na fila")
+                        .row("Custo", "2 GB")
+                        .row("Pedido por", "agente-1"),
+                )
+                .child(
+                    TermBlock::new()
+                        .terminal()
+                        .line("$ demo check --all")
+                        .dim("checking demo v0.1.0")
+                        .line("ok"),
+                )
+                .footer(Btn::new("detalhe-parar", "Parar").kind(ButtonKind::Destructive))
+        });
         div()
             .relative()
             .flex()
@@ -465,6 +495,7 @@ impl Render for Gallery {
                     .version(concat!("hades-ui ", env!("CARGO_PKG_VERSION"))),
             )
             .children(dialogo)
+            .children(painel)
     }
 }
 
@@ -611,6 +642,42 @@ fn configuracoes(
                 })
             }
         });
+    let linha_modo = SettingRow::select(
+        "cfg-modo",
+        "Modo de captura",
+        Select::new(
+            "cfg-modo-sel",
+            [
+                SelectOption::new("auto", "Automático"),
+                SelectOption::new("full", "Completo"),
+                SelectOption::new("off", "Desligado"),
+            ],
+        )
+        .value(g.cfg_modo.clone().unwrap_or_else(|| "auto".into()))
+        .on_change({
+            let this = this.clone();
+            move |v, _, cx| {
+                let v = v.clone();
+                this.update(cx, |g, cx| {
+                    g.cfg_modo = Some(v);
+                    g.cfg_sujo += 1;
+                    cx.notify();
+                })
+            }
+        }),
+    )
+    .key("HADES_DEMO_CAPTURE")
+    .description("Lista fechada do catálogo.")
+    .default_value("auto")
+    .modified(g.cfg_modo.as_deref().is_some_and(|m| m != "auto"));
+    let linha_modo_erro = SettingRow::select(
+        "cfg-modo-erro",
+        "Formato do relatório",
+        Select::new("cfg-modo-erro-sel", ["md", "json"]).value("yaml"),
+    )
+    .key("HADES_DEMO_FORMAT")
+    .origin(SettingOrigin::File)
+    .error("Valor fora da lista: use md ou json");
     let linha_off = SettingRow::switch("cfg-off", "Modo legado", false)
         .key("HADES_DEMO_LEGACY")
         .description("Indisponível nesta versão.")
@@ -621,11 +688,13 @@ fn configuracoes(
         .gap(px(12.0))
         .child(
             SettingsGroup::new("Avisos e limites")
-                .meta("5 configurações · 1 fora do padrão")
+                .meta("7 configurações · 1 fora do padrão")
                 .row(linha_bool)
                 .row(linha_num)
                 .row(linha_texto)
                 .row(linha_caminho)
+                .row(linha_modo)
+                .row(linha_modo_erro)
                 .row(linha_off),
         )
         .child(
@@ -708,6 +777,17 @@ fn estados(g: &Gallery, this: &gpui::Entity<Gallery>) -> impl IntoElement {
                     .icon(IconName::Plus),
             ),
     );
+    botoes = botoes.child(linha("Detalhe").child(
+        Btn::new("abrir-detalhe", "Abrir painel lateral").on_click({
+            let this = this.clone();
+            move |_, _, cx| {
+                this.update(cx, |g, cx| {
+                    g.detalhe = true;
+                    cx.notify();
+                })
+            }
+        }),
+    ));
     let chave = |i: usize| {
         let this = this.clone();
         move |v: bool, _: &mut Window, cx: &mut App| {
