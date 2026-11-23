@@ -95,6 +95,13 @@ impl Card {
         self
     }
 
+    /// Nota secundária no corpo do cartão: texto menor (12 px) em `muted-foreground`, para contagens e
+    /// observações como "2 evento(s) e 1 métrica(s)".
+    pub fn note(mut self, text: impl Into<SharedString>) -> Self {
+        self.children.push(Note(text.into()).into_any_element());
+        self
+    }
+
     /// Ocupa a altura que sobra no pai (coluna flex); o conteúdo que também tem `fill` cresce junto.
     pub fn fill(mut self) -> Self {
         self.fill = true;
@@ -198,5 +205,17 @@ impl RenderOnce for Card {
             );
         }
         card.children(self.children)
+    }
+}
+
+#[derive(IntoElement)]
+struct Note(SharedString);
+
+impl RenderOnce for Note {
+    fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
+        div()
+            .text_color(palette(cx).muted_fg)
+            .text_size(px(size::META))
+            .child(self.0)
     }
 }

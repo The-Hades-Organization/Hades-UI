@@ -11,16 +11,26 @@ use crate::tokens::{FONT_MONO, Tone, size};
 #[derive(IntoElement)]
 pub struct Meter {
     fraction: f32,
+    over: bool,
+    real: f32,
     tone: Tone,
     label: Option<SharedString>,
     value: Option<SharedString>,
 }
 
 impl Meter {
-    /// `fraction` fica entre 0 e 1.
+    /// A barra vai de 0 a 1. Acima de 1 (estouro) ela fica cheia na cor de perigo, com um corte na ponta, e,
+    /// sem `value`, o rótulo mostra o percentual real (ex.: "130%").
     pub fn new(fraction: f32) -> Self {
+        let fraction = if fraction.is_nan() {
+            0.0
+        } else {
+            fraction.max(0.0)
+        };
         Self {
-            fraction: fraction.clamp(0.0, 1.0),
+            fraction: fraction.min(1.0),
+            over: fraction > 1.0,
+            real: fraction,
             tone: Tone::Neutral,
             label: None,
             value: None,
@@ -47,7 +57,9 @@ impl Meter {
 impl RenderOnce for Meter {
     fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
         let p = palette(cx);
-        let fill = if self.tone == Tone::Neutral {
+        let fill = if self.over {
+            p.bad
+        } else if self.tone == Tone::Neutral {
             p.fg
         } else {
             p.tone(self.tone)
@@ -56,8 +68,27 @@ impl RenderOnce for Meter {
             .h(px(4.0))
             .w_full()
             .bg(p.border)
+            .relative()
             .child(div().h_full().w(relative(self.fraction)).bg(fill));
-        if self.label.is_none() && self.value.is_none() {
+        let bar = if self.over {
+            bar.child(
+                div()
+                    .absolute()
+                    .top_0()
+                    .right_0()
+                    .h_full()
+                    .w(px(2.0))
+                    .bg(p.fg),
+            )
+        } else {
+            bar
+        };
+        let value = match self.value {
+            Some(v) => Some(v),
+            None if self.over => Some(format!("{:.0}%", self.real * 100.0).into()),
+            None => None,
+        };
+        if self.label.is_none() && value.is_none() {
             return bar.into_any_element();
         }
         let mut head = div()
@@ -72,8 +103,9 @@ impl RenderOnce for Meter {
                 .text_color(p.muted_fg)
                 .child(self.label.unwrap_or_default()),
         );
-        if let Some(value) = self.value {
-            head = head.child(div().font_family(FONT_MONO).text_color(p.fg).child(value));
+        if let Some(value) = value {
+            let color = if self.over { p.bad } else { p.fg };
+            head = head.child(div().font_family(FONT_MONO).text_color(color).child(value));
         }
         div()
             .flex()

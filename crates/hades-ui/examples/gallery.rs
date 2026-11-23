@@ -12,8 +12,9 @@ use hades_ui::components::{
     Align, Button as Btn, ButtonKind, ButtonSize, Card, Confirm, ContextMenu, CopyButton,
     DataTable, Dot, EmptyState, FilterBar, Fio, FioState, IconButton, Kbd, Kpi, KpiStrip,
     MarkdownView, Menu, MenuEntry, MetaList, Meter, Page, PageHeader, PathField, Rail, RailBrand,
-    RailGroup, RailItem, RailStat, Segmented, Skeleton, SortDirection, Spinner, StatusBadge,
-    StatusBar, Switch, TermBlock, TextField, Timeline, Tip, Toast,
+    RailGroup, RailItem, RailStat, Segmented, SettingOrigin, SettingRow, SettingsBar,
+    SettingsGroup, Skeleton, SortDirection, Spinner, StatusBadge, StatusBar, Switch, TermBlock,
+    TextField, Timeline, Tip, Toast,
 };
 use hades_ui::icons::{Icon, IconName};
 
@@ -34,6 +35,12 @@ struct Gallery {
     recolhida: bool,
     pulada: bool,
     rolar_ao_fim: bool,
+    cfg: Option<(gpui::Entity<InputState>, gpui::Entity<InputState>)>,
+    cfg_ligado: bool,
+    cfg_origem: Option<SettingOrigin>,
+    cfg_caminho: Option<SharedString>,
+    cfg_sujo: usize,
+    cfg_salvo: bool,
 }
 
 impl Render for Gallery {
@@ -61,6 +68,25 @@ impl Render for Gallery {
                 .detach();
                 self.campo = Some(c.clone());
                 c
+            }
+        };
+        let cfg = match self.cfg.clone() {
+            Some(c) => c,
+            None => {
+                let numero = cx.new(|cx| InputState::new(window, cx).default_value("90"));
+                let texto = cx.new(|cx| InputState::new(window, cx).default_value("acme/demo"));
+                for e in [&numero, &texto] {
+                    cx.subscribe(e, |g: &mut Gallery, _, e: &InputEvent, cx| {
+                        if matches!(e, InputEvent::Change) {
+                            g.cfg_sujo = g.cfg_sujo.max(1);
+                            g.cfg_salvo = false;
+                            cx.notify();
+                        }
+                    })
+                    .detach();
+                }
+                self.cfg = Some((numero.clone(), texto.clone()));
+                (numero, texto)
             }
         };
         let this = cx.entity();
@@ -408,7 +434,9 @@ impl Render for Gallery {
                                 .fill(),
                         ),
                     ),
-            );
+            )
+            .child(configuracoes(self, &this, &cfg.0, &cfg.1, cx))
+            ;
         let dialogo = self.confirmando.then(|| {
             let fechar = {
                 let this = this.clone();
@@ -505,6 +533,136 @@ fn escolhas(g: &Gallery, this: &gpui::Entity<Gallery>) -> impl IntoElement {
         .gap(px(12.0))
         .child(div().flex_1().min_w_0().child(acesso))
         .child(div().flex_1().min_w_0().child(notificacoes))
+}
+
+/// Página Configurações: dados fictícios. Origem, valor e erro vêm do estado do exemplo; a lib não lê arquivo.
+fn configuracoes(
+    g: &Gallery,
+    this: &gpui::Entity<Gallery>,
+    numero: &gpui::Entity<InputState>,
+    texto: &gpui::Entity<InputState>,
+    cx: &App,
+) -> impl IntoElement {
+    let atualiza = |this: &gpui::Entity<Gallery>, f: fn(&mut Gallery)| {
+        let this = this.clone();
+        move |cx: &mut App| {
+            this.update(cx, |g, cx| {
+                f(g);
+                g.cfg_salvo = false;
+                cx.notify();
+            })
+        }
+    };
+    let valor = numero.read(cx).value().to_string();
+    let erro = hades_ui::components::validate_int(&valor, 10, 100);
+    let origem = g.cfg_origem.unwrap_or(SettingOrigin::File);
+    let linha_bool = SettingRow::switch("cfg-ligado", "Avisar no celular", g.cfg_ligado)
+        .key("HADES_DEMO_NOTIFY_PHONE")
+        .description("Manda o aviso de gate concluído também para o celular.")
+        .default_value("0")
+        .origin(if g.cfg_ligado {
+            SettingOrigin::File
+        } else {
+            SettingOrigin::Default
+        })
+        .modified(g.cfg_ligado)
+        .on_change({
+            let a = atualiza(this, |g| {
+                g.cfg_ligado = !g.cfg_ligado;
+                g.cfg_sujo += 1;
+            });
+            move |_, _, cx| a(cx)
+        })
+        .on_reset({
+            let a = atualiza(this, |g| g.cfg_ligado = false);
+            move |_, _, cx| a(cx)
+        });
+    let linha_num = SettingRow::number("cfg-teto", "Teto de memória (%)", numero, 10, 100)
+        .key("HADES_DEMO_MEM_CEILING")
+        .description("Acima disso a fila segura novos gates.")
+        .default_value("80")
+        .origin(origem)
+        .modified(valor != "80")
+        .error_opt(erro)
+        .on_reset({
+            let numero = numero.clone();
+            move |_, window, cx| {
+                numero.update(cx, |s, cx| s.set_value("80", window, cx));
+            }
+        });
+    let linha_texto = SettingRow::text("cfg-repo", "Repositório padrão", texto)
+        .key("HADES_DEMO_REPO")
+        .description("Usado quando o comando não recebe um repositório.")
+        .default_value("vazio")
+        .origin(SettingOrigin::Env);
+    let linha_caminho = SettingRow::path("cfg-dados", "Pasta de dados", g.cfg_caminho.clone())
+        .directories()
+        .key("HADES_DEMO_DATA")
+        .description("Onde ficam logs e estado da ferramenta.")
+        .default_value("~/.local/share/demo")
+        .origin(SettingOrigin::Default)
+        .on_pick({
+            let this = this.clone();
+            move |path, cx| {
+                this.update(cx, |g, cx| {
+                    g.cfg_caminho = Some(path.display().to_string().into());
+                    g.cfg_sujo += 1;
+                    cx.notify();
+                })
+            }
+        });
+    let linha_off = SettingRow::switch("cfg-off", "Modo legado", false)
+        .key("HADES_DEMO_LEGACY")
+        .description("Indisponível nesta versão.")
+        .disabled(true);
+    div()
+        .flex()
+        .flex_col()
+        .gap(px(12.0))
+        .child(
+            SettingsGroup::new("Avisos e limites")
+                .meta("5 configurações · 1 fora do padrão")
+                .row(linha_bool)
+                .row(linha_num)
+                .row(linha_texto)
+                .row(linha_caminho)
+                .row(linha_off),
+        )
+        .child(
+            Card::new()
+                .title("Medidor e nota")
+                .child(
+                    Meter::new(1.3)
+                        .label("Memória do slice")
+                        .value("5,2 GiB de 4 GiB (130%)"),
+                )
+                .child(Meter::new(1.15).label("Janela semanal"))
+                .note("2 evento(s) e 1 métrica(s)"),
+        )
+        .child(
+            SettingsBar::new(g.cfg_sujo)
+                .saved(g.cfg_salvo)
+                .on_save({
+                    let this = this.clone();
+                    move |_, _, cx| {
+                        this.update(cx, |g, cx| {
+                            g.cfg_sujo = 0;
+                            g.cfg_salvo = true;
+                            cx.notify();
+                        })
+                    }
+                })
+                .on_discard({
+                    let this = this.clone();
+                    move |_, _, cx| {
+                        this.update(cx, |g, cx| {
+                            g.cfg_sujo = 0;
+                            g.cfg_ligado = false;
+                            cx.notify();
+                        })
+                    }
+                }),
+        )
 }
 
 fn linha(rotulo: &'static str) -> gpui::Div {

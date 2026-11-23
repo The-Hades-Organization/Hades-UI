@@ -48,6 +48,8 @@ Só o que é genérico de UI e aparece em páginas de design diferentes.
 | `RailStat` | bloco de estado do rodapé do `Rail` (rótulo, valor e `Meter`), como "Memória" no painel |
 | `StatusBar` | barra de estado no pé da janela |
 | `Button` | botão quadrado: `ButtonKind` (secondary, primary, ghost, destructive, ghost-destructive, link), `ButtonSize` (md, xs, lg, icon), `loading` com giro, `disabled(motivo)` com hachura e o motivo no tooltip |
+| `SettingsGroup`, `SettingRow` | página Configurações: grupo em cartão e linha por chave, com rótulo, descrição, chave em mono, controle do tipo (`switch`, `number` com faixa, `text`, `path`), selo de origem (`SettingOrigin`: padrão, arquivo, ambiente), erro em linha, desabilitado e "Restaurar padrão" (`on_reset`); origem ambiente deixa o campo só leitura ("definido no ambiente"); `validate_int` valida o `int:min:max` |
+| `SettingsBar` | barra de ações com "Salvar" e "Descartar", ativos só com alteração pendente, e aviso "Salvo"; estado no chamador |
 | `Segmented` | escolha de uma opção entre poucas; estado no chamador (`selected`, `on_select`) |
 | `FilterBar` | chips de filtro que ligam e desligam; estado no chamador |
 | `PathField` | caminho somente leitura com "Escolher" no diálogo de arquivo do sistema (`on_pick`) |
@@ -98,6 +100,19 @@ todos; `Icon` desenha um; `brand_mark` e `HADES_MARK` trazem o glifo da marca. `
 aceitam ícone opcional (`Menu::icon(índice)`), e `Rail::brand(RailBrand)` põe a marca no topo da sidebar. A marca mostra o nome da ferramenta, não "Hades":
 `RailBrand::new("Moirai").subtitle("planos e estimativas")`; `RailBrand::hades()` fica só para o painel do Hades. Mudanças
 aditivas, sem quebra de API.
+
+## Migração de 0.2.4 para 0.2.5
+
+Aditiva, sem quebra de API.
+
+- Componentes novos para a página Configurações de cada ferramenta: `SettingsGroup`, `SettingRow`, `SettingOrigin`,
+  `SettingsBar` e `validate_int`. A lib não lê arquivo nem guarda valor: o app passa valor, origem e erro a cada
+  render e recebe `on_change`, `on_pick`, `on_reset`, `on_save` e `on_discard`. Número e texto usam `InputState`
+  (o mesmo do `TextField`).
+- `Meter` acima de 100%: a barra enche na cor de perigo com um corte na ponta e, sem `value`, o rótulo mostra o
+  percentual real ("130%"). Antes o valor era cortado em 100%; quem passava fração maior que 1 vê a mudança.
+- `Card::note(texto)`: nota secundária no corpo (12 px, cor fraca), para contagens como "2 evento(s) e 1 métrica(s)".
+- A gallery ganhou a seção de configurações no fim (`--fim`), com dados fictícios.
 
 ## Nota sobre a v0.2.4
 
