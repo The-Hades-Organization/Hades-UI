@@ -205,8 +205,8 @@ impl Rail {
         }
     }
 
-    /// Bloco livre preso ao pé do trilho, abaixo dos grupos. Some quando o trilho está recolhido; para o estado de
-    /// memória ou janela, prefira [`Rail::stat`], que tem forma curta.
+    /// Bloco livre preso ao pé do trilho, abaixo dos grupos, com o respiro dos itens e o texto em `rail-muted`. Some
+    /// quando o trilho está recolhido; para o estado de memória ou janela, prefira [`Rail::stat`], que tem forma curta.
     pub fn footer(mut self, footer: impl IntoElement) -> Self {
         self.footer = Some(footer.into_any_element());
         self
@@ -719,7 +719,14 @@ impl RenderOnce for Rail {
             .border_r_1()
             .border_color(p.rail_line)
             .child(head)
-            .child(div().flex_1().min_h_0().overflow_hidden().child(nav))
+            .child(
+                div()
+                    .id((id.clone(), "navegacao"))
+                    .flex_1()
+                    .min_h_0()
+                    .overflow_y_scroll()
+                    .child(nav.pb(px(16.0))),
+            )
             .children(theme)
             .when_some(self.stat, |r, s| {
                 if collapsed {
@@ -728,7 +735,17 @@ impl RenderOnce for Rail {
                     r.child(s)
                 }
             })
-            .when(!collapsed, |r| r.children(self.footer))
+            .when(!collapsed, |r| {
+                r.children(self.footer.map(|f| {
+                    div()
+                        .flex_none()
+                        .px(px(16.0))
+                        .pt(px(8.0))
+                        .pb(px(12.0))
+                        .text_color(p.rail_mute)
+                        .child(f)
+                }))
+            })
     }
 }
 
